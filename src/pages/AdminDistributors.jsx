@@ -1,91 +1,150 @@
-import React, { useState } from 'react';
-import { FiSearch, FiEye, FiTrash2, FiMail, FiPhone, FiUser, FiBriefcase, FiCheck, FiX, FiArrowLeft } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { 
+  FiSearch, FiEye, FiTrash2, FiMail, FiPhone, 
+  FiUser, FiBriefcase, FiCheck, FiX, FiArrowLeft 
+} from 'react-icons/fi';
 import { Link } from 'react-router-dom';
+import { DistributorApi } from '../services/DistributorApi';
 
 const AdminDistributors = () => {
-    // Sample distributor data - replace with API call
-    const [distributors, setDistributors] = useState([
-        {
-            id: 1,
-            company: 'Precision Tools Distributors',
-            contactName: 'Ahmed Al-Mansoori',
-            title: 'Sales Director',
-            email: 'ahmed@precisiontools.com',
-            phone: '+966 50 123 4567',
-            channels: 'Industrial equipment suppliers, construction companies, and government contracts in Eastern Province',
-            status: 'Approved',
-            date: '2023-05-10T14:30:00'
-        },
-        {
-            id: 2,
-            company: 'Tech Measurement Solutions',
-            contactName: 'Sarah Johnson',
-            title: 'CEO',
-            email: 'sarah@techmeasure.com',
-            phone: '+1 555 789 1234',
-            channels: 'North American market focusing on aerospace and automotive industries',
-            status: 'Pending',
-            date: '2023-05-15T09:15:00'
-        },
-        {
-            id: 3,
-            company: 'Gulf Calibration Services',
-            contactName: 'Mohammed Hassan',
-            title: 'Procurement Manager',
-            email: 'm.hassan@gulfcalibration.com',
-            phone: '+966 55 987 6543',
-            channels: 'Service centers and maintenance companies across Saudi Arabia and UAE',
-            status: 'Rejected',
-            date: '2023-05-08T11:45:00'
-        }
-    ]);
-
+    const [distributors, setDistributors] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedDistributor, setSelectedDistributor] = useState(null);
     const [distributorToDelete, setDistributorToDelete] = useState(null);
     const [statusFilter, setStatusFilter] = useState('All');
     const [dateSort, setDateSort] = useState('');
 
-    // Filter and sort distributors
+    const token = localStorage.getItem('adminToken');
+
+    useEffect(() => {
+        const fetchDistributors = async () => {
+            try {
+                setLoading(true);
+                const response = await DistributorApi.getAllApplications(token);
+                
+                // Ensure we always get an array
+                let applications = [];
+                if (Array.isArray(response)) {
+                    applications = response;
+                } else if (response && Array.isArray(response.data)) {
+                    applications = response.data;
+                } else if (response && response.data) {
+                    applications = [response.data];
+                }
+
+                setDistributors(applications);
+                setError(null);
+            } catch (err) {
+                console.error('Failed to fetch distributors:', err);
+                setError(err.message || 'Failed to load distributor applications');
+                setDistributors([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDistributors();
+    }, [token]);
+
     const filteredDistributors = distributors
         .filter(distributor => {
+            if (!distributor) return false;
+            
             const matchesSearch =
-                distributor.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                distributor.contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                distributor.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                distributor.channels.toLowerCase().includes(searchTerm.toLowerCase());
+                (distributor.company?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                (distributor.contactName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                (distributor.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                (distributor.channels?.toLowerCase() || '').includes(searchTerm.toLowerCase());
 
-            const matchesStatus = statusFilter === 'All' || distributor.status === statusFilter;
+            const matchesStatus = 
+                statusFilter === 'All' ||
+                (statusFilter === 'Pending' && distributor.status === 'pending') ||
+                (statusFilter === 'Approved' && distributor.status === 'approved') ||
+                (statusFilter === 'Rejected' && distributor.status === 'rejected');
 
             return matchesSearch && matchesStatus;
         })
         .sort((a, b) => {
-            if (dateSort === 'Newest') {
-                return new Date(b.date) - new Date(a.date);
-            } else if (dateSort === 'Oldest') {
-                return new Date(a.date) - new Date(b.date);
-            }
+            if (!a || !b) return 0;
+            const dateA = a.date || a.createdAt;
+            const dateB = b.date || b.createdAt;
+            if (!dateA || !dateB) return 0;
+            if (dateSort === 'Newest') return new Date(dateB) - new Date(dateA);
+            if (dateSort === 'Oldest') return new Date(dateA) - new Date(dateB);
             return 0;
         });
 
-    // Delete distributor
-    const handleDelete = (id) => {
-        setDistributors(distributors.filter(distributor => distributor.id !== id));
-        setDistributorToDelete(null);
+    const updateStatus = async (id, newStatus) => {
+        try {
+            const normalizedStatus = newStatus.toLowerCase();
+            setDistributors(prev => prev.map(d => 
+                d.id === id ? { ...d, status: normalizedStatus } : d
+            ));
+            
+            await DistributorApi.updateStatus(id, normalizedStatus, token);
+            
+            if (selectedDistributor?.id === id) {
+                const updated = await DistributorApi.getApplication(id, token);
+                setSelectedDistributor(updated.data || updated);
+            }
+        } catch (err) {
+            console.error('Status update failed:', err);
+            setError(err.message || 'Failed to update status');
+            // Revert the status change in UI
+            setDistributors(prev => prev.map(d => 
+                d.id === id ? { ...d, status: d.status } : d
+            ));
+        }
     };
 
-    // Update distributor status
-    const updateStatus = (id, newStatus) => {
-        setDistributors(distributors.map(distributor =>
-            distributor.id === id ? { ...distributor, status: newStatus } : distributor
-        ));
+    const handleDelete = async (id) => {
+        try {
+            await DistributorApi.deleteApplication(id, token);
+            setDistributors(prev => prev.filter(d => d.id !== id));
+            setDistributorToDelete(null);
+            
+            if (selectedDistributor?.id === id) {
+                setSelectedDistributor(null);
+            }
+        } catch (err) {
+            console.error('Delete failed:', err);
+            setError(err.message || 'Failed to delete application');
+        }
     };
 
-    // Format date
     const formatDate = (dateString) => {
-        const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-        return new Date(dateString).toLocaleDateString('en-US', options);
+        if (!dateString) return 'N/A';
+        try {
+            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            return new Date(dateString).toLocaleDateString('en-US', options);
+        } catch {
+            return 'Invalid Date';
+        }
     };
+
+    if (loading) {
+        return (
+            <div className="container mx-auto px-4 py-8">
+                <div className="text-center py-8">Loading distributor applications...</div>
+            </div>
+        );
+    }
+
+    if (error && distributors.length === 0) {
+        return (
+            <div className="container mx-auto px-4 py-8">
+                <div className="text-center py-8 text-red-500">Error: {error}</div>
+                <button 
+                    onClick={() => window.location.reload()}
+                    className="mt-4 mx-auto block bg-blue-500 text-white px-4 py-2 rounded"
+                >
+                    Retry
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -98,21 +157,44 @@ const AdminDistributors = () => {
                 </Link>
             </div>
             
-            {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <h1 className="text-2xl font-bold text-gray-800">Distributor Applications</h1>
                 <div className="flex items-center gap-3">
                     <span className="text-sm text-gray-600">Total: {distributors.length}</span>
                     <span className="text-sm text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                        Pending: {distributors.filter(d => d.status === 'Pending').length}
+                        Pending: {distributors.filter(d => d.status === 'pending').length}
                     </span>
                 </div>
             </div>
 
-            {/* Filters and Search */}
+            {error && (
+                <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+                    {error}
+                    <button 
+                        onClick={() => setError(null)}
+                        className="float-right font-bold"
+                    >
+                        &times;
+                    </button>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                
-                {/* Status filter */}
+                {/* <div>
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <FiSearch className="text-gray-400" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search applications..."
+                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                </div>
+                 */}
                 <div>
                     <select
                         className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -126,7 +208,6 @@ const AdminDistributors = () => {
                     </select>
                 </div>
 
-                {/* Date sort dropdown */}
                 <div>
                     <select
                         className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -140,7 +221,6 @@ const AdminDistributors = () => {
                 </div>
             </div>
 
-            {/* Distributors table */}
             <div className="bg-white shadow rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
@@ -173,25 +253,35 @@ const AdminDistributors = () => {
                                                     <FiBriefcase className="h-5 w-5 text-blue-600" />
                                                 </div>
                                                 <div className="ml-4">
-                                                    <div className="text-sm font-medium text-gray-900">{distributor.company}</div>
-                                                    <div className="text-sm text-gray-500">{distributor.email}</div>
+                                                    <div className="text-sm font-medium text-gray-900">
+                                                        {distributor.company || 'N/A'}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500">
+                                                        {distributor.email || 'N/A'}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">{distributor.contactName}</div>
-                                            <div className="text-sm text-gray-500">{distributor.phone}</div>
+                                            <div className="text-sm text-gray-900">
+                                                {distributor.contactName || 'N/A'}
+                                            </div>
+                                            <div className="text-sm text-gray-500">
+                                                {distributor.phone || 'N/A'}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {formatDate(distributor.date)}
+                                            {formatDate(distributor.date || distributor.createdAt)}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                distributor.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                distributor.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                                                distributor.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                distributor.status === 'approved' ? 'bg-green-100 text-green-800' :
                                                 'bg-red-100 text-red-800'
                                             }`}>
-                                                {distributor.status}
+                                                {distributor.status ? 
+                                                    distributor.status.charAt(0).toUpperCase() + distributor.status.slice(1) : 
+                                                    'Unknown'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -217,7 +307,9 @@ const AdminDistributors = () => {
                             ) : (
                                 <tr>
                                     <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
-                                        No distributor applications found
+                                        {distributors.length === 0 ? 
+                                            'No distributor applications available' : 
+                                            'No applications match your search criteria'}
                                     </td>
                                 </tr>
                             )}
@@ -226,7 +318,7 @@ const AdminDistributors = () => {
                 </div>
             </div>
 
-            {/* Distributor Detail Modal */}
+            {/* View Modal */}
             {selectedDistributor && (
                 <div className="fixed z-10 inset-0 overflow-y-auto">
                     <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -239,7 +331,7 @@ const AdminDistributors = () => {
                                     <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
                                         <div className="flex justify-between items-start">
                                             <h3 className="text-lg leading-6 font-medium text-gray-900">
-                                                {selectedDistributor.company}
+                                                {selectedDistributor.company || 'Distributor Details'}
                                             </h3>
                                             <button
                                                 onClick={() => setSelectedDistributor(null)}
@@ -254,40 +346,50 @@ const AdminDistributors = () => {
                                                     <FiUser className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
                                                     <div>
                                                         <p className="text-sm font-medium text-gray-500">Contact Name</p>
-                                                        <p className="text-sm text-gray-900">{selectedDistributor.contactName}</p>
+                                                        <p className="text-sm text-gray-900">
+                                                            {selectedDistributor.contactName || 'N/A'}
+                                                        </p>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-start">
                                                     <FiBriefcase className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
                                                     <div>
                                                         <p className="text-sm font-medium text-gray-500">Title</p>
-                                                        <p className="text-sm text-gray-900">{selectedDistributor.title}</p>
+                                                        <p className="text-sm text-gray-900">
+                                                            {selectedDistributor.title || 'N/A'}
+                                                        </p>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-start">
                                                     <FiMail className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
                                                     <div>
                                                         <p className="text-sm font-medium text-gray-500">Email</p>
-                                                        <p className="text-sm text-gray-900">{selectedDistributor.email}</p>
+                                                        <p className="text-sm text-gray-900">
+                                                            {selectedDistributor.email || 'N/A'}
+                                                        </p>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-start">
                                                     <FiPhone className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
                                                     <div>
                                                         <p className="text-sm font-medium text-gray-500">Phone</p>
-                                                        <p className="text-sm text-gray-900">{selectedDistributor.phone}</p>
+                                                        <p className="text-sm text-gray-900">
+                                                            {selectedDistributor.phone || 'N/A'}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             </div>
                                             <div>
                                                 <p className="text-sm font-medium text-gray-500">Target Markets/Channels</p>
                                                 <p className="text-sm text-gray-900 mt-1 bg-gray-50 p-3 rounded">
-                                                    {selectedDistributor.channels}
+                                                    {selectedDistributor.channels || 'N/A'}
                                                 </p>
                                             </div>
                                             <div>
                                                 <p className="text-sm font-medium text-gray-500">Application Date</p>
-                                                <p className="text-sm text-gray-900">{formatDate(selectedDistributor.date)}</p>
+                                                <p className="text-sm text-gray-900">
+                                                    {formatDate(selectedDistributor.date || selectedDistributor.createdAt)}
+                                                </p>
                                             </div>
                                         </div>
                                     </div>
@@ -296,24 +398,24 @@ const AdminDistributors = () => {
                             <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse justify-between">
                                 <div className="flex space-x-2">
                                     <select
-                                        value={selectedDistributor.status}
+                                        value={selectedDistributor.status || 'pending'}
                                         onChange={(e) => updateStatus(selectedDistributor.id, e.target.value)}
                                         className="border border-gray-300 rounded-md px-3 py-1 text-sm"
                                     >
-                                        <option value="Pending">Pending</option>
-                                        <option value="Approved">Approved</option>
-                                        <option value="Rejected">Rejected</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="approved">Approved</option>
+                                        <option value="rejected">Rejected</option>
                                     </select>
-                                    {selectedDistributor.status === 'Pending' && (
+                                    {selectedDistributor.status === 'pending' && (
                                         <>
                                             <button
-                                                onClick={() => updateStatus(selectedDistributor.id, 'Approved')}
+                                                onClick={() => updateStatus(selectedDistributor.id, 'approved')}
                                                 className="inline-flex items-center justify-center rounded-md border border-transparent shadow-sm px-4 py-1 bg-green-600 text-sm font-medium text-white hover:bg-green-700"
                                             >
                                                 <FiCheck className="mr-1" /> Approve
                                             </button>
                                             <button
-                                                onClick={() => updateStatus(selectedDistributor.id, 'Rejected')}
+                                                onClick={() => updateStatus(selectedDistributor.id, 'rejected')}
                                                 className="inline-flex items-center justify-center rounded-md border border-transparent shadow-sm px-4 py-1 bg-red-600 text-sm font-medium text-white hover:bg-red-700"
                                             >
                                                 <FiX className="mr-1" /> Reject
