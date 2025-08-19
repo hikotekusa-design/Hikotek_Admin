@@ -90,22 +90,35 @@ export const DistributorApi = {
   },
 
   // Delete application (Admin)
-  deleteApplication: async (id, token) => {
+// Update the deleteApplication method
+deleteApplication: async (id, token) => {
     try {
-      const response = await fetch(`${BASE_URL}/admin/distributor/${id}`, {
+      const url = `${BASE_URL}/admin/distributor/${id}`; // Changed from /distributor to /distributors
+      console.log('DELETE request to:', url);
+      
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
 
       if (!response.ok) {
-        throw new Error(response.status === 404 ? 'Application not found' : 'Delete failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || 
+          `Delete failed with status ${response.status}`
+        );
       }
 
-      return true;
+      return await response.json();
     } catch (error) {
-      console.error('Delete error:', error);
+      console.error('Delete error:', {
+        message: error.message,
+        id: id,
+        url: `${BASE_URL}/admin/distributors/${id}`
+      });
       throw error;
     }
   }

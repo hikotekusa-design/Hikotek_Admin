@@ -2,11 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { FiSearch, FiEye, FiMail, FiUser, FiPhone, FiGlobe, FiHome, FiArrowLeft, FiTrash2 } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { enquiryApi } from '../services/EnquiryApi';
-
-// Helper function to normalize status
-const normalizeStatus = (status) => {
-  return typeof status === 'object' ? status.value : status;
-};
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const AdminEnquiries = () => {
     const [enquiries, setEnquiries] = useState([]);
@@ -17,91 +14,107 @@ const AdminEnquiries = () => {
     const [enquiryToDelete, setEnquiryToDelete] = useState(null);
     const [statusFilter, setStatusFilter] = useState('All');
     const [dateSort, setDateSort] = useState('');
+    const [deleting, setDeleting] = useState(false);
 
-    // Fetch enquiries on component mount
+    // Normalize status with strict defaulting
+    const normalizeStatus = (status) => {
+        if (!status || typeof status !== 'string') return 'New';
+        const cleanStatus = status.trim();
+        if (['New', 'In Progress', 'Completed'].includes(cleanStatus)) {
+            return cleanStatus;
+        }
+        return 'New';
+    };
+
+    // Fetch enquiries with status normalization
     useEffect(() => {
         const fetchEnquiries = async () => {
             try {
                 const response = await enquiryApi.getAll();
                 const formattedEnquiries = response.data.map(enquiry => ({
+                    ...enquiry,
                     id: enquiry.id,
-                    status: normalizeStatus(enquiry.status),
-                    ...enquiry
+                    status: normalizeStatus(enquiry.status) // Force normalization
                 }));
                 setEnquiries(formattedEnquiries);
                 setLoading(false);
             } catch (err) {
                 setError(err.message);
                 setLoading(false);
+                toast.error('Failed to load enquiries');
             }
         };
-
         fetchEnquiries();
     }, []);
 
-    // Fetch single enquiry when selected
+    // Fetch single enquiry with status normalization
     const fetchEnquiryDetails = async (id) => {
         try {
             const response = await enquiryApi.getById(id);
             const enquiryData = {
                 ...response.data,
-                status: normalizeStatus(response.data.status)
+                status: normalizeStatus(response.data.status) // Force normalization
             };
             setSelectedEnquiry(enquiryData);
         } catch (err) {
             console.error("Error fetching enquiry details:", err);
             setError(err.message);
+            toast.error('Failed to load enquiry details');
         }
     };
 
-    // Update enquiry status
+    // Update status with validation
     const updateStatus = async (id, newStatus) => {
         try {
-            // Update in backend
-            await enquiryApi.updateStatus(id, newStatus);
+            const normalizedStatus = normalizeStatus(newStatus);
+            
+            await enquiryApi.updateStatus(id, normalizedStatus);
 
-            // Update in local state
-            setEnquiries(enquiries.map(enquiry =>
-                enquiry.id === id ? { ...enquiry, status: newStatus } : enquiry
+            setEnquiries(prev => prev.map(enquiry =>
+                enquiry.id === id ? { ...enquiry, status: normalizedStatus } : enquiry
             ));
 
-            // Update the selected enquiry if it's the one being changed
-            if (selectedEnquiry && selectedEnquiry.id === id) {
-                setSelectedEnquiry({ ...selectedEnquiry, status: newStatus });
+            if (selectedEnquiry?.id === id) {
+                setSelectedEnquiry({ ...selectedEnquiry, status: normalizedStatus });
             }
 
+            toast.success('Status updated successfully');
         } catch (err) {
             console.error("Error updating status:", err);
             setError(err.message);
+            toast.error(err.message || 'Failed to update status');
         }
     };
 
     // Delete enquiry
     const handleDelete = async (id) => {
+        setDeleting(true);
         try {
             await enquiryApi.delete(id);
-            setEnquiries(enquiries.filter(enquiry => enquiry.id !== id));
+            setEnquiries(prev => prev.filter(enquiry => enquiry.id !== id));
             setEnquiryToDelete(null);
-            if (selectedEnquiry && selectedEnquiry.id === id) {
+            
+            if (selectedEnquiry?.id === id) {
                 setSelectedEnquiry(null);
             }
+            
+            toast.success('Enquiry deleted successfully');
         } catch (err) {
             console.error("Error deleting enquiry:", err);
             setError(err.message);
+            toast.error('Failed to delete enquiry');
+        } finally {
+            setDeleting(false);
         }
     };
 
     // Filter and sort enquiries
     const filteredEnquiries = enquiries
         .filter(enquiry => {
-            const matchesSearch =
-                (enquiry.fullName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                (enquiry.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                (enquiry.company?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                (enquiry.comments?.toLowerCase() || '').includes(searchTerm.toLowerCase());
-
+            const matchesSearch = ['fullName', 'email', 'company', 'comments'].some(
+                field => (enquiry[field]?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+            );
             const matchesStatus = statusFilter === 'All' || enquiry.status === statusFilter;
-
             return matchesSearch && matchesStatus;
         })
         .sort((a, b) => {
@@ -113,22 +126,23 @@ const AdminEnquiries = () => {
     // Format date
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
-        const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-        return new Date(dateString).toLocaleDateString('en-US', options);
+        return new Date(dateString).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
     };
 
     // Get status color classes
     const getStatusColor = (status) => {
         const normalizedStatus = normalizeStatus(status);
         switch(normalizedStatus) {
-            case 'New':
-                return 'bg-blue-100 text-blue-800 border-blue-200';
-            case 'In Progress':
-                return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-            case 'Completed':
-                return 'bg-green-100 text-green-800 border-green-200';
-            default:
-                return 'bg-gray-100 text-gray-800 border-gray-200';
+            case 'New': return 'bg-blue-100 text-blue-800 border-blue-200';
+            case 'In Progress': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+            case 'Completed': return 'bg-green-100 text-green-800 border-green-200';
+            default: return 'bg-blue-100 text-blue-800 border-blue-200';
         }
     };
 
@@ -155,6 +169,7 @@ const AdminEnquiries = () => {
 
     return (
         <div className="container mx-auto px-4 py-8">
+            {/* Header and controls */}
             <div className="mb-4">
                 <Link to="/admin/dashboard" className="flex items-center text-blue-600 hover:text-blue-800">
                     <FiArrowLeft className="mr-1" /> Back to Dashboard
@@ -171,6 +186,7 @@ const AdminEnquiries = () => {
                 </div>
             </div>
 
+            {/* Filters */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div>
                     <select
@@ -198,6 +214,7 @@ const AdminEnquiries = () => {
                 </div>
             </div>
 
+            {/* Enquiries Table */}
             <div className="bg-white shadow rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
@@ -213,7 +230,7 @@ const AdminEnquiries = () => {
                         <tbody className="bg-white divide-y divide-gray-200">
                             {filteredEnquiries.length > 0 ? (
                                 filteredEnquiries.map((enquiry) => {
-                                    const statusText = normalizeStatus(enquiry.status);
+                                    const status = normalizeStatus(enquiry.status);
                                     return (
                                         <tr key={enquiry.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 whitespace-nowrap">
@@ -243,8 +260,8 @@ const AdminEnquiries = () => {
                                                 {formatDate(enquiry.createdAt)}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full border ${getStatusColor(enquiry.status)}`}>
-                                                    {statusText || 'N/A'}
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full border ${getStatusColor(status)}`}>
+                                                    {status}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -303,6 +320,7 @@ const AdminEnquiries = () => {
                                             </button>
                                         </div>
                                         <div className="mt-4 space-y-4">
+                                            {/* Enquiry details */}
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div className="flex items-start">
                                                     <FiMail className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
@@ -410,9 +428,10 @@ const AdminEnquiries = () => {
                                 <button
                                     onClick={() => handleDelete(enquiryToDelete)}
                                     type="button"
-                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:ml-3 sm:w-auto sm:text-sm"
+                                    disabled={deleting}
+                                    className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:ml-3 sm:w-auto sm:text-sm ${deleting ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
-                                    Delete
+                                    {deleting ? 'Deleting...' : 'Delete'}
                                 </button>
                                 <button
                                     onClick={() => setEnquiryToDelete(null)}

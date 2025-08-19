@@ -126,14 +126,14 @@ const AdminProducts= () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-3">
                         <Link
-                          to={`/admin/products/view/${product.id}`}
+                          to={`/admin/products/view`}
                           className="text-blue-600 hover:text-blue-900"
                           title="View"
                         >
                           <FiEye className="h-5 w-5" />
                         </Link>
                         <Link
-                          to={`/admin/products/edit/${product.id}`}
+                          to={`/admin/products/edit`}
                           className="text-yellow-600 hover:text-yellow-900"
                           title="Edit"
                         >

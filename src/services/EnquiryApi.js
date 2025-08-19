@@ -32,6 +32,34 @@ updateStatus: async (id, status) => {
         throw new Error('Failed to update enquiry status');
     }
     return await response.json();
+},
+
+delete: async (id) => {
+  try {
+    const response = await fetch(`${BASE_URL}/admin/enquiries/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        // Add auth header if needed
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to delete enquiry');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('API Delete Error:', {
+      message: error.message,
+      id,
+      url: `${BASE_URL}/admin/enquiries/${id}`
+    });
+    throw error;
+  }
 }
 
 

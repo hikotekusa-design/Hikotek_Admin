@@ -99,20 +99,42 @@ const AdminDistributors = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        try {
-            await DistributorApi.deleteApplication(id, token);
-            setDistributors(prev => prev.filter(d => d.id !== id));
-            setDistributorToDelete(null);
-            
-            if (selectedDistributor?.id === id) {
-                setSelectedDistributor(null);
-            }
-        } catch (err) {
-            console.error('Delete failed:', err);
-            setError(err.message || 'Failed to delete application');
+   const handleDelete = async (id) => {
+    try {
+        console.log('Attempting to delete distributor with ID:', id);
+        
+        if (!id) {
+            throw new Error('Invalid distributor ID');
         }
-    };
+
+        // Get the full distributor object for debugging
+        const distributor = distributors.find(d => d.id === id);
+        if (!distributor) {
+            throw new Error('Distributor not found in local state');
+        }
+
+        console.log('Deleting distributor:', distributor);
+
+        await DistributorApi.deleteApplication(id, token);
+        
+        // Update state
+        setDistributors(prev => prev.filter(d => d.id !== id));
+        setDistributorToDelete(null);
+        
+        if (selectedDistributor?.id === id) {
+            setSelectedDistributor(null);
+        }
+
+        setError(null);
+    } catch (err) {
+        console.error('Delete failed:', {
+            message: err.message,
+            id: id,
+            error: err
+        });
+        setError(err.message || 'Failed to delete application');
+    }
+};
 
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
@@ -180,21 +202,7 @@ const AdminDistributors = () => {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                {/* <div>
-                    <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <FiSearch className="text-gray-400" />
-                        </div>
-                        <input
-                            type="text"
-                            placeholder="Search applications..."
-                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                </div>
-                 */}
+                
                 <div>
                     <select
                         className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
