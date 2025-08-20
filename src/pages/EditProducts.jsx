@@ -1,10 +1,11 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { FiUpload, FiTrash2, FiPlus, FiX, FiArrowLeft, FiEye, FiEyeOff } from 'react-icons/fi';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { productApi } from '../services/productApi';
 
-const AddProducts = () => {
+const EditProducts = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState({
     name: '',
     price: '',
@@ -18,27 +19,54 @@ const AddProducts = () => {
     imageFiles: [],
     mainImage: '',
   });
-
   const [activeTab, setActiveTab] = useState('basic');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
+  const [success, setSuccess] = useState('');
   const fileInputRef = useRef(null);
-  const navigate = useNavigate();
 
-  // Clean up object URLs when component unmounts
+  // Clean up object URLs when component unmounts or images change
   useEffect(() => {
     return () => {
       product.images.forEach((url) => {
-        if (url.startsWith('blob:')) {
-          URL.revokeObjectURL(url);
-        }
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
       });
       if (product.mainImage && product.mainImage.startsWith('blob:')) {
         URL.revokeObjectURL(product.mainImage);
       }
     };
   }, [product.images, product.mainImage]);
+
+  // Fetch existing product data
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const response = await productApi.getById(id);
+        if (response.success) {
+          const data = response.data;
+          setProduct({
+            name: data.name || '',
+            price: data.price || '',
+            showPrice: data.showPrice || true,
+            category: data.category || '',
+            description: data.description || '',
+            specifications: Array.isArray(data.specifications) ? data.specifications : [''],
+            highlights: Array.isArray(data.highlights) ? data.highlights : [''],
+            downloads: data.downloads || [],
+            images: data.images || [],
+            imageFiles: [],
+            mainImage: data.mainImage || (data.images.length > 0 ? data.images[0] : ''),
+          });
+        } else {
+          setServerError('Failed to fetch product details.');
+        }
+      } catch (error) {
+        setServerError(error.message || 'Failed to fetch product details.');
+      }
+    };
+    fetchProduct();
+  }, [id]);
 
   // Validate form
   const validateForm = () => {
@@ -63,9 +91,7 @@ const AddProducts = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setProduct((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: '' }));
-    }
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
     setServerError('');
   };
 
@@ -74,9 +100,7 @@ const AddProducts = () => {
     const newSpecs = [...product.specifications];
     newSpecs[index] = value;
     setProduct((prev) => ({ ...prev, specifications: newSpecs }));
-    if (errors.specifications) {
-      setErrors((prev) => ({ ...prev, specifications: '' }));
-    }
+    if (errors.specifications) setErrors((prev) => ({ ...prev, specifications: '' }));
     setServerError('');
   };
 
@@ -85,9 +109,7 @@ const AddProducts = () => {
     const newHighlights = [...product.highlights];
     newHighlights[index] = value;
     setProduct((prev) => ({ ...prev, highlights: newHighlights }));
-    if (errors.highlights) {
-      setErrors((prev) => ({ ...prev, highlights: '' }));
-    }
+    if (errors.highlights) setErrors((prev) => ({ ...prev, highlights: '' }));
     setServerError('');
   };
 
@@ -112,78 +134,12 @@ const AddProducts = () => {
     return null;
   };
 
-  // Handle download file upload
-  const handleDownloadUpload = (e) => {
-    const files = Array.from(e.target.files);
-    if (product.downloads.length + files.length > 3) {
-      setErrors((prev) => ({
-        ...prev,
-        downloads: 'Maximum 3 PDF files allowed',
-      }));
-      return;
-    }
-
-    const validFiles = [];
-    const newErrors = { ...errors };
-
-    files.forEach((file) => {
-      const error = validateFile(file, ['application/pdf'], 10);
-      if (error) {
-        newErrors.downloads = newErrors.downloads
-          ? `${newErrors.downloads}, ${error}`
-          : error;
-      } else {
-        validFiles.push(file);
-      }
-    });
-
-    setErrors(newErrors);
-
-    if (validFiles.length > 0) {
-      setProduct((prev) => ({
-        ...prev,
-        downloads: [...prev.downloads, ...validFiles],
-      }));
-    }
-
-    e.target.value = '';
-  };
-
-  // Remove specification field
-  const removeSpecField = (index) => {
-    const newSpecs = product.specifications.filter((_, i) => i !== index);
-    setProduct((prev) => ({ ...prev, specifications: newSpecs }));
-    if (errors.specifications) {
-      setErrors((prev) => ({ ...prev, specifications: '' }));
-    }
-  };
-
-  // Remove highlight field
-  const removeHighlightField = (index) => {
-    const newHighlights = product.highlights.filter((_, i) => i !== index);
-    setProduct((prev) => ({ ...prev, highlights: newHighlights }));
-    if (errors.highlights) {
-      setErrors((prev) => ({ ...prev, highlights: '' }));
-    }
-  };
-
-  // Remove download file
-  const removeDownloadFile = (index) => {
-    const newDownloads = product.downloads.filter((_, i) => i !== index);
-    setProduct((prev) => ({ ...prev, downloads: newDownloads }));
-    if (errors.downloads) {
-      setErrors((prev) => ({ ...prev, downloads: '' }));
-    }
-  };
-
   // Handle image upload
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
-    if (product.imageFiles.length + files.length > 5) {
-      setErrors((prev) => ({
-        ...prev,
-        images: 'Maximum 5 images allowed',
-      }));
+    const totalImages = product.imageFiles.length + files.length;
+    if (totalImages > 5) {
+      setErrors((prev) => ({ ...prev, images: 'Maximum 5 images allowed' }));
       return;
     }
 
@@ -221,12 +177,53 @@ const AddProducts = () => {
     e.target.value = '';
   };
 
-  // Set main image
-  const setMainImage = (img) => {
-    setProduct((prev) => ({ ...prev, mainImage: img }));
-    if (errors.mainImage) {
-      setErrors((prev) => ({ ...prev, mainImage: '' }));
+  // Handle download upload
+  const handleDownloadUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const totalDownloads = product.downloads.length + files.length;
+    if (totalDownloads > 3) {
+      setErrors((prev) => ({ ...prev, downloads: 'Maximum 3 PDF files allowed' }));
+      return;
     }
+
+    const validFiles = [];
+    const newErrors = { ...errors };
+
+    files.forEach((file) => {
+      const error = validateFile(file, ['application/pdf'], 10);
+      if (error) {
+        newErrors.downloads = newErrors.downloads
+          ? `${newErrors.downloads}, ${error}`
+          : error;
+      } else {
+        validFiles.push(file);
+      }
+    });
+
+    setErrors(newErrors);
+
+    if (validFiles.length > 0) {
+      setProduct((prev) => ({
+        ...prev,
+        downloads: [...prev.downloads, ...validFiles],
+      }));
+    }
+
+    e.target.value = '';
+  };
+
+  // Remove specification field
+  const removeSpecField = (index) => {
+    const newSpecs = product.specifications.filter((_, i) => i !== index);
+    setProduct((prev) => ({ ...prev, specifications: newSpecs }));
+    if (errors.specifications) setErrors((prev) => ({ ...prev, specifications: '' }));
+  };
+
+  // Remove highlight field
+  const removeHighlightField = (index) => {
+    const newHighlights = product.highlights.filter((_, i) => i !== index);
+    setProduct((prev) => ({ ...prev, highlights: newHighlights }));
+    if (errors.highlights) setErrors((prev) => ({ ...prev, highlights: '' }));
   };
 
   // Remove image
@@ -250,9 +247,22 @@ const AddProducts = () => {
       mainImage: newMainImage,
     }));
 
-    if (newImages.length === 0 && !newErrors.images) {
+    if (newImages.length === 0 && !errors.images) {
       setErrors((prev) => ({ ...prev, images: 'At least one image is required' }));
     }
+  };
+
+  // Remove download
+  const removeDownloadFile = (index) => {
+    const newDownloads = product.downloads.filter((_, i) => i !== index);
+    setProduct((prev) => ({ ...prev, downloads: newDownloads }));
+    if (errors.downloads) setErrors((prev) => ({ ...prev, downloads: '' }));
+  };
+
+  // Set main image
+  const setMainImage = (img) => {
+    setProduct((prev) => ({ ...prev, mainImage: img }));
+    if (errors.mainImage) setErrors((prev) => ({ ...prev, mainImage: '' }));
   };
 
   // Toggle price visibility
@@ -260,7 +270,7 @@ const AddProducts = () => {
     setProduct((prev) => ({ ...prev, showPrice: !prev.showPrice }));
   };
 
-  // Form submission
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -276,6 +286,7 @@ const AddProducts = () => {
 
     setIsSubmitting(true);
     setServerError('');
+    setSuccess('');
 
     try {
       const formData = new FormData();
@@ -292,48 +303,33 @@ const AddProducts = () => {
         'highlights',
         JSON.stringify(product.highlights.filter((h) => h.trim() !== ''))
       );
-
-      product.imageFiles.forEach((file) => {
-        formData.append('images', file);
-      });
-
+      product.imageFiles.forEach((file) => formData.append('images', file));
       product.downloads.forEach((file) => {
-        formData.append('downloads', file);
+        if (file instanceof File) formData.append('downloads', file);
       });
 
-      const result = await productApi.create(formData);
-      console.log('Create product response:', result); // Debug log
+      // Indicate to keep existing images/downloads if no new ones are uploaded
+      formData.append('keepExistingImages', product.images.length > product.imageFiles.length ? 'true' : 'false');
+      formData.append('keepExistingDownloads', product.downloads.every(d => typeof d === 'string') ? 'true' : 'false');
 
-      if (result.success) {
-        alert('Product created successfully!');
-        // Clean up blob URLs
-        product.images.forEach((url) => {
-          if (url.startsWith('blob:')) {
-            URL.revokeObjectURL(url);
+      const response = await productApi.update(id, formData);
+      console.log('Update product response:', response);
+
+      if (response.success) {
+        setSuccess('Product updated successfully!');
+        setTimeout(() => navigate('/admin/products'), 2000);
+        // Clean up blob URLs for new images
+        product.imageFiles.forEach((file, idx) => {
+          if (product.images[idx] && product.images[idx].startsWith('blob:')) {
+            URL.revokeObjectURL(product.images[idx]);
           }
         });
-        if (product.mainImage && product.mainImage.startsWith('blob:')) {
-          URL.revokeObjectURL(product.mainImage);
-        }
-        // Reset form
-        setProduct({
-          name: '',
-          price: '',
-          showPrice: true,
-          category: '',
-          description: '',
-          specifications: [''],
-          highlights: [''],
-          downloads: [],
-          images: [],
-          imageFiles: [],
-          mainImage: '',
-        });
-        setErrors({});
-        navigate('/admin/products');
+      } else {
+        setServerError(response.error || 'Failed to update product.');
       }
     } catch (error) {
-      setServerError(error.message || 'Failed to create product. Please try again.');
+      console.error('Error updating product:', error);
+      setServerError(error.message || 'Failed to update product. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -341,9 +337,7 @@ const AddProducts = () => {
 
   // Trigger file input click
   const triggerFileInput = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
+    if (fileInputRef.current) fileInputRef.current.click();
   };
 
   return (
@@ -356,11 +350,16 @@ const AddProducts = () => {
           <FiArrowLeft className="mr-1" /> Back to Products
         </Link>
       </div>
-      <h1 className="text-2xl font-bold mb-6">Add New Product</h1>
+      <h1 className="text-2xl font-bold mb-6">Edit Product</h1>
 
       {serverError && (
         <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
           {serverError}
+        </div>
+      )}
+      {success && (
+        <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
+          {success}
         </div>
       )}
 
@@ -401,9 +400,7 @@ const AddProducts = () => {
                       type="button"
                       onClick={() => {
                         const index = product.images.indexOf(product.mainImage);
-                        if (index !== -1) {
-                          removeImage(index);
-                        }
+                        if (index !== -1) removeImage(index);
                       }}
                       className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
@@ -659,9 +656,9 @@ const AddProducts = () => {
                 <div key={index} className="flex items-center justify-between p-3 border rounded-md">
                   <div className="flex items-center">
                     <FiUpload className="mr-2 text-gray-500" />
-                    <span className="text-sm truncate">{file.name}</span>
+                    <span className="text-sm truncate">{typeof file === 'string' ? file.split('/').pop() : file.name}</span>
                     <span className="text-xs text-gray-500 ml-2">
-                      ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                      {typeof file === 'string' ? '' : `(${(file.size / 1024 / 1024).toFixed(2)} MB)`}
                     </span>
                   </div>
                   <button
@@ -724,10 +721,10 @@ const AddProducts = () => {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                Creating...
+                Updating...
               </>
             ) : (
-              'Save Product'
+              'Save Changes'
             )}
           </button>
         </div>
@@ -736,4 +733,4 @@ const AddProducts = () => {
   );
 };
 
-export default AddProducts;
+export default EditProducts;

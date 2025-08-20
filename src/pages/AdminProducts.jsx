@@ -1,46 +1,75 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiEdit, FiEye, FiTrash2, FiPlus, FiSearch, FiArrowLeft } from 'react-icons/fi';
-import { Link } from 'react-router-dom';
-import AdminSidebar from './AdminSidebar';
+import { Link, useNavigate } from 'react-router-dom';
+import { productApi } from '../services/productApi';
 
-const AdminProducts= () => {
-  // Sample product data - replace with API call
-  const [products, setProducts] = useState([
-    {
-      id: 1,
-      name: 'Mitutoyo 511-711 Dial Bore Gauge',
-      image: 'https://www.faithfulltools.com/images/full/FAICALVER.jpg',
-      price: '795.00 SAR',
-    //   stock: 15,
-    //   status: 'In Stock'
-    },
-    {
-      id: 2,
-      name: 'Digital Caliper 500-196-30',
-      image: 'https://goodwill.in/pub/media/catalog/product/cache/affde3bad6fff216fce8dd9a3ef91de9/p/b/pb_8326.png',
-      price: '450.00 SAR',
-    //   stock: 0,
-    //   status: 'Out of Stock'
-    }
-  ]);
-
+const AdminProducts = () => {
+  const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [productToDelete, setProductToDelete] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  // Fetch products on mount
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const response = await productApi.getAll();
+        if (response.success) {
+          setProducts(response.data);
+        } else {
+          setError('Failed to fetch products. Please try again.');
+        }
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        setError(
+          err.message.includes('PERMISSION_DENIED')
+            ? 'Permission denied. Please check your admin credentials or contact support.'
+            : err.message || 'Failed to fetch products. Please try again.'
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  // Handle product deletion
+  const handleDelete = async (id) => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const response = await productApi.delete(id);
+      if (response.success) {
+        setProducts(products.filter((product) => product.id !== id));
+        setProductToDelete(null);
+      } else {
+        setError('Failed to delete product. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error deleting product:', err);
+      setError(
+        err.message.includes('PERMISSION_DENIED')
+          ? 'Permission denied. Please check your admin credentials or contact support.'
+          : err.message || 'Failed to delete product. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Filter products based on search
-  const filteredProducts = products.filter(product =>
+  const filteredProducts = products.filter((product) =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Delete product
-  const handleDelete = (id) => {
-    setProducts(products.filter(product => product.id !== id));
-    setProductToDelete(null);
-  };
-
   return (
     <div className="container mx-auto px-4 py-8">
-         <div className="mb-4">
+      <div className="mb-4">
         <Link
           to="/admin/dashboard"
           className="flex items-center text-blue-600 hover:text-blue-800"
@@ -48,6 +77,7 @@ const AdminProducts= () => {
           <FiArrowLeft className="mr-1" /> Back to Dashboard
         </Link>
       </div>
+
       {/* Header with Add Product button */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <h1 className="text-2xl font-bold text-gray-800">Manage Products</h1>
@@ -58,6 +88,13 @@ const AdminProducts= () => {
           <FiPlus /> Add Product
         </Link>
       </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
 
       {/* Search bar */}
       <div className="mb-6 relative max-w-md">
@@ -70,6 +107,7 @@ const AdminProducts= () => {
           placeholder="Search products..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          disabled={isLoading}
         />
       </div>
 
@@ -79,31 +117,71 @@ const AdminProducts= () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Product
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Price
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stock
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredProducts.length > 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
+                    <div className="flex justify-center items-center">
+                      <svg
+                        className="animate-spin h-5 w-5 text-blue-600"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      <span className="ml-2">Loading products...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredProducts.length > 0 ? (
                 filteredProducts.map((product) => (
                   <tr key={product.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
-                          <img className="h-10 w-10 object-contain" src={product.image} alt={product.name} />
+                          <img
+                            className="h-10 w-10 object-contain"
+                            src={product.mainImage || '/placeholder-image.jpg'}
+                            alt={product.name}
+                            onError={(e) => {
+                              e.target.src = '/placeholder-image.jpg'; // Fallback image
+                            }}
+                          />
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">{product.name}</div>
@@ -111,29 +189,21 @@ const AdminProducts= () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {product.price}
+                      {product.showPrice ? `${product.price} SAR` : 'Hidden'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {product.stock}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        product.status === 'In Stock' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {product.status}
-                      </span>
-                    </td>
+                    
+                    
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-3">
                         <Link
-                          to={`/admin/products/view`}
+                          to={`/admin/products/view/${product.id}`}
                           className="text-blue-600 hover:text-blue-900"
                           title="View"
                         >
                           <FiEye className="h-5 w-5" />
                         </Link>
                         <Link
-                          to={`/admin/products/edit`}
+                          to={`/admin/products/edit/${product.id}`}
                           className="text-yellow-600 hover:text-yellow-900"
                           title="Edit"
                         >
@@ -143,6 +213,7 @@ const AdminProducts= () => {
                           onClick={() => setProductToDelete(product.id)}
                           className="text-red-600 hover:text-red-900"
                           title="Delete"
+                          disabled={isLoading}
                         >
                           <FiTrash2 className="h-5 w-5" />
                         </button>
@@ -189,9 +260,10 @@ const AdminProducts= () => {
                 <button
                   onClick={() => handleDelete(productToDelete)}
                   type="button"
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:ml-3 sm:w-auto sm:text-sm"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isLoading}
                 >
-                  Delete
+                  {isLoading ? 'Deleting...' : 'Delete'}
                 </button>
                 <button
                   onClick={() => setProductToDelete(null)}
