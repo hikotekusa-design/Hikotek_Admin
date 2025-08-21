@@ -165,4 +165,28 @@ export const productApi = {
       throw error;
     }
   },
+  getCount: async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) throw new Error('Authentication token not found');
+
+      const response = await fetch(`${BASE_URL}/admin/products/count`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch product count');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('API Get Product Count Error:', error);
+      throw error;
+    }
+  },
 };

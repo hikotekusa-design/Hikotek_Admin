@@ -121,5 +121,58 @@ deleteApplication: async (id, token) => {
       });
       throw error;
     }
+  },
+
+getCount: async (token) => {
+  try {
+    const response = await fetch(`${BASE_URL}/admin/distributor/count`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    console.log('Distributor count response:', { status: response.status, data }); // Debug log
+    if (!response.ok) {
+      throw new Error(
+        data.error || `Failed to fetch distributor count (Status: ${response.status})`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    console.error('API Get Distributor Count Error:', {
+      message: error.message,
+      url: `${BASE_URL}/admin/distributor/count`,
+    });
+    throw error;
   }
+},
+getRecent: async (token) => {
+    try {
+      const response = await fetch(`${BASE_URL}/admin/distributor/recent`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await response.json();
+      console.log('Recent applications response:', { status: response.status, data });
+      if (!response.ok) {
+        throw new Error(
+          data.error || `Failed to fetch recent applications (Status: ${response.status})`
+        );
+      }
+      return data;
+    } catch (error) {
+      console.error('API Get Recent Applications Error:', {
+        message: error.message,
+        url: `${BASE_URL}/admin/distributor/recent`,
+      });
+      throw error;
+    }
+  },
 };

@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   FiHome, 
   FiPackage, 
@@ -9,6 +9,14 @@ import {
 } from 'react-icons/fi';
 
 const AdminSidebar = () => {
+  const navigate = useNavigate();
+  
+  const handleLogout = () => {
+    // Add any logout logic here (like clearing tokens, etc.)
+    // Then navigate to the login page
+    navigate('/');
+  };
+
   return (
     <div className="w-64 bg-[#0e4da4] text-white min-h-screen fixed flex flex-col">
       {/* Logo/Branding */}
@@ -53,9 +61,7 @@ const AdminSidebar = () => {
         >
           <FiMail className="mr-3" />
           Enquiries
-          <span className="ml-auto bg-yellow-500 text-xs text-white px-2 py-1 rounded-full">
-            5
-          </span>
+          
         </NavLink>
 
         <NavLink 
@@ -69,23 +75,14 @@ const AdminSidebar = () => {
           <FiUsers className="mr-3" />
           Distributors
         </NavLink>
-{/* 
-        <NavLink 
-          to="/admin/settings" 
-          className={({isActive}) => 
-            `flex items-center px-4 py-3 rounded-lg transition-all ${
-              isActive ? 'bg-blue-700 text-white' : 'hover:bg-blue-600'
-            }`
-          }
-        >
-          <FiSettings className="mr-3" />
-          Settings
-        </NavLink> */}
       </nav>
 
       {/* Footer/Logout */}
       <div className="p-4 border-t border-blue-700">
-        <button className="flex items-center w-full px-4 py-3 text-left rounded-lg hover:bg-blue-600 transition-all">
+        <button 
+          onClick={handleLogout}
+          className="flex items-center w-full px-4 py-3 text-left rounded-lg hover:bg-blue-600 transition-all"
+        >
           <FiLogOut className="mr-3" />
           Logout
         </button>

@@ -60,7 +60,62 @@ delete: async (id) => {
     });
     throw error;
   }
-}
+},
+getCount: async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) throw new Error('Authentication token not found');
+
+      const response = await fetch(`${BASE_URL}/admin/enquiries/count`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      console.log('Enquiry count response:', { status: response.status, data }); // Debug log
+      if (!response.ok) {
+        throw new Error(
+          data.error || `Failed to fetch enquiry count (Status: ${response.status})`
+        );
+      }
+
+      return data;
+    } catch (error) {
+      console.error('API Get Enquiry Count Error:', {
+        message: error.message,
+        url: `${BASE_URL}/admin/enquiries/count`,
+      });
+      throw error;
+    }
+  },
+  getRecent: async (token) => {
+    try {
+      const response = await fetch(`${BASE_URL}/admin/enquiries/recent`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await response.json();
+      console.log('Recent enquiries response:', { status: response.status, data });
+      if (!response.ok) {
+        throw new Error(
+          data.error || `Failed to fetch recent enquiries (Status: ${response.status})`
+        );
+      }
+      return data;
+    } catch (error) {
+      console.error('API Get Recent Enquiries Error:', {
+        message: error.message,
+        url: `${BASE_URL}/admin/enquiries/recent`,
+      });
+      throw error;
+    }
+  },
 
 
 

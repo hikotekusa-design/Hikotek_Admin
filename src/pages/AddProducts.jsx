@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { FiUpload, FiTrash2, FiPlus, FiX, FiArrowLeft, FiEye, FiEyeOff } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
@@ -18,7 +17,9 @@ const AddProducts = () => {
     imageFiles: [],
     mainImage: '',
   });
-
+  const [categories, setCategories] = useState([]);
+  const [isNewCategory, setIsNewCategory] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
   const [activeTab, setActiveTab] = useState('basic');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
@@ -26,7 +27,21 @@ const AddProducts = () => {
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
-  // Clean up object URLs when component unmounts
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const result = await productApi.getAll();
+        if (result.success && result.data) {
+          const uniqueCategories = [...new Set(result.data.map((p) => p.category?.trim()).filter(Boolean))].sort();
+          setCategories(uniqueCategories);
+        }
+      } catch (err) {
+        setServerError('Error fetching categories: ' + err.message);
+      }
+    };
+    fetchCategories();
+  }, []);
+
   useEffect(() => {
     return () => {
       product.images.forEach((url) => {
@@ -40,13 +55,11 @@ const AddProducts = () => {
     };
   }, [product.images, product.mainImage]);
 
-  // Validate form
   const validateForm = () => {
     const newErrors = {};
-
     if (!product.name.trim()) newErrors.name = 'Product name is required';
     if (!product.price || parseFloat(product.price) <= 0) newErrors.price = 'Valid price is required';
-    if (!product.category.trim()) newErrors.category = 'Category is required';
+    if (!product.category.trim() && !newCategoryInput.trim()) newErrors.category = 'Category is required';
     if (product.images.length === 0) newErrors.images = 'At least one image is required';
     if (product.specifications.some((spec) => !spec.trim())) {
       newErrors.specifications = 'All specifications must be filled';
@@ -54,12 +67,10 @@ const AddProducts = () => {
     if (product.highlights.some((highlight) => !highlight.trim())) {
       newErrors.highlights = 'All highlights must be filled';
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     setProduct((prev) => ({ ...prev, [name]: value }));
@@ -69,7 +80,31 @@ const AddProducts = () => {
     setServerError('');
   };
 
-  // Handle specification changes
+  const handleCategoryChange = (e) => {
+    const value = e.target.value;
+    if (value === 'new') {
+      setIsNewCategory(true);
+      setProduct((prev) => ({ ...prev, category: '' }));
+    } else {
+      setIsNewCategory(false);
+      setNewCategoryInput('');
+      setProduct((prev) => ({ ...prev, category: value }));
+    }
+    if (errors.category) {
+      setErrors((prev) => ({ ...prev, category: '' }));
+    }
+    setServerError('');
+  };
+
+  const handleNewCategoryChange = (e) => {
+    setNewCategoryInput(e.target.value);
+    setProduct((prev) => ({ ...prev, category: e.target.value }));
+    if (errors.category) {
+      setErrors((prev) => ({ ...prev, category: '' }));
+    }
+    setServerError('');
+  };
+
   const handleSpecChange = (index, value) => {
     const newSpecs = [...product.specifications];
     newSpecs[index] = value;
@@ -80,7 +115,6 @@ const AddProducts = () => {
     setServerError('');
   };
 
-  // Handle highlights changes
   const handleHighlightChange = (index, value) => {
     const newHighlights = [...product.highlights];
     newHighlights[index] = value;
@@ -91,17 +125,14 @@ const AddProducts = () => {
     setServerError('');
   };
 
-  // Add new specification field
   const addSpecField = () => {
     setProduct((prev) => ({ ...prev, specifications: [...prev.specifications, ''] }));
   };
 
-  // Add new highlight field
   const addHighlightField = () => {
     setProduct((prev) => ({ ...prev, highlights: [...prev.highlights, ''] }));
   };
 
-  // Validate file type and size
   const validateFile = (file, allowedTypes, maxSizeMB = 10) => {
     if (!allowedTypes.includes(file.type)) {
       return `File type not allowed for ${file.name}. Allowed types: ${allowedTypes.join(', ')}`;
@@ -112,7 +143,6 @@ const AddProducts = () => {
     return null;
   };
 
-  // Handle download file upload
   const handleDownloadUpload = (e) => {
     const files = Array.from(e.target.files);
     if (product.downloads.length + files.length > 3) {
@@ -122,34 +152,26 @@ const AddProducts = () => {
       }));
       return;
     }
-
     const validFiles = [];
     const newErrors = { ...errors };
-
     files.forEach((file) => {
       const error = validateFile(file, ['application/pdf'], 10);
       if (error) {
-        newErrors.downloads = newErrors.downloads
-          ? `${newErrors.downloads}, ${error}`
-          : error;
+        newErrors.downloads = newErrors.downloads ? `${newErrors.downloads}, ${error}` : error;
       } else {
         validFiles.push(file);
       }
     });
-
     setErrors(newErrors);
-
     if (validFiles.length > 0) {
       setProduct((prev) => ({
         ...prev,
         downloads: [...prev.downloads, ...validFiles],
       }));
     }
-
     e.target.value = '';
   };
 
-  // Remove specification field
   const removeSpecField = (index) => {
     const newSpecs = product.specifications.filter((_, i) => i !== index);
     setProduct((prev) => ({ ...prev, specifications: newSpecs }));
@@ -158,7 +180,6 @@ const AddProducts = () => {
     }
   };
 
-  // Remove highlight field
   const removeHighlightField = (index) => {
     const newHighlights = product.highlights.filter((_, i) => i !== index);
     setProduct((prev) => ({ ...prev, highlights: newHighlights }));
@@ -167,7 +188,6 @@ const AddProducts = () => {
     }
   };
 
-  // Remove download file
   const removeDownloadFile = (index) => {
     const newDownloads = product.downloads.filter((_, i) => i !== index);
     setProduct((prev) => ({ ...prev, downloads: newDownloads }));
@@ -176,7 +196,6 @@ const AddProducts = () => {
     }
   };
 
-  // Handle image upload
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
     if (product.imageFiles.length + files.length > 5) {
@@ -186,12 +205,10 @@ const AddProducts = () => {
       }));
       return;
     }
-
     const newImageFiles = [...product.imageFiles];
     const newImageUrls = [...product.images];
     const newErrors = { ...errors };
     let hasValidFiles = false;
-
     files.forEach((file) => {
       const error = validateFile(file, ['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
       if (error) {
@@ -203,9 +220,7 @@ const AddProducts = () => {
         hasValidFiles = true;
       }
     });
-
     setErrors(newErrors);
-
     if (hasValidFiles) {
       setProduct((prev) => ({
         ...prev,
@@ -217,11 +232,9 @@ const AddProducts = () => {
         setErrors((prev) => ({ ...prev, images: '' }));
       }
     }
-
     e.target.value = '';
   };
 
-  // Set main image
   const setMainImage = (img) => {
     setProduct((prev) => ({ ...prev, mainImage: img }));
     if (errors.mainImage) {
@@ -229,41 +242,32 @@ const AddProducts = () => {
     }
   };
 
-  // Remove image
   const removeImage = (index) => {
     if (!window.confirm('Are you sure you want to remove this image?')) return;
-
     const newImages = product.images.filter((_, i) => i !== index);
     const newImageFiles = product.imageFiles.filter((_, i) => i !== index);
-
     if (product.images[index].startsWith('blob:')) {
       URL.revokeObjectURL(product.images[index]);
     }
-
     const newMainImage =
       product.mainImage === product.images[index] ? newImages[0] || '' : product.mainImage;
-
     setProduct((prev) => ({
       ...prev,
       images: newImages,
       imageFiles: newImageFiles,
       mainImage: newMainImage,
     }));
-
-    if (newImages.length === 0 && !newErrors.images) {
+    if (newImages.length === 0) {
       setErrors((prev) => ({ ...prev, images: 'At least one image is required' }));
     }
   };
 
-  // Toggle price visibility
   const togglePriceVisibility = () => {
     setProduct((prev) => ({ ...prev, showPrice: !prev.showPrice }));
   };
 
-  // Form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!validateForm()) {
       const firstError = Object.keys(errors)[0];
       if (firstError) {
@@ -273,17 +277,15 @@ const AddProducts = () => {
       }
       return;
     }
-
     setIsSubmitting(true);
     setServerError('');
-
     try {
       const formData = new FormData();
-      formData.append('name', product.name);
+      formData.append('name', product.name.trim());
       formData.append('price', product.price);
       formData.append('showPrice', product.showPrice);
-      formData.append('category', product.category);
-      formData.append('description', product.description || '');
+      formData.append('category', product.category.trim());
+      formData.append('description', product.description.trim() || '');
       formData.append(
         'specifications',
         JSON.stringify(product.specifications.filter((s) => s.trim() !== ''))
@@ -292,21 +294,18 @@ const AddProducts = () => {
         'highlights',
         JSON.stringify(product.highlights.filter((h) => h.trim() !== ''))
       );
-
       product.imageFiles.forEach((file) => {
         formData.append('images', file);
       });
-
       product.downloads.forEach((file) => {
         formData.append('downloads', file);
       });
-
       const result = await productApi.create(formData);
       console.log('Create product response:', result); // Debug log
-
-      if (result.success) {
+      if (result.success && result.data) {
+        // Set status to active to ensure it appears in /products/showcase
+        await productApi.updateStatus(result.data.id, 'active');
         alert('Product created successfully!');
-        // Clean up blob URLs
         product.images.forEach((url) => {
           if (url.startsWith('blob:')) {
             URL.revokeObjectURL(url);
@@ -315,7 +314,6 @@ const AddProducts = () => {
         if (product.mainImage && product.mainImage.startsWith('blob:')) {
           URL.revokeObjectURL(product.mainImage);
         }
-        // Reset form
         setProduct({
           name: '',
           price: '',
@@ -329,8 +327,12 @@ const AddProducts = () => {
           imageFiles: [],
           mainImage: '',
         });
+        setIsNewCategory(false);
+        setNewCategoryInput('');
         setErrors({});
         navigate('/admin/products');
+      } else {
+        setServerError(result.error || 'Failed to create product');
       }
     } catch (error) {
       setServerError(error.message || 'Failed to create product. Please try again.');
@@ -339,7 +341,6 @@ const AddProducts = () => {
     }
   };
 
-  // Trigger file input click
   const triggerFileInput = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -357,13 +358,11 @@ const AddProducts = () => {
         </Link>
       </div>
       <h1 className="text-2xl font-bold mb-6">Add New Product</h1>
-
       {serverError && (
         <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
           {serverError}
         </div>
       )}
-
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6">
         <div className="mb-6 border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
@@ -384,7 +383,6 @@ const AddProducts = () => {
             ))}
           </nav>
         </div>
-
         {activeTab === 'basic' && (
           <div className="grid md:grid-cols-2 gap-8 mb-8">
             <div>
@@ -435,7 +433,6 @@ const AddProducts = () => {
                 )}
                 {errors.images && <p className="text-red-500 text-xs mt-1">{errors.images}</p>}
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Additional Images</label>
                 <div className="grid grid-cols-4 gap-2">
@@ -474,7 +471,6 @@ const AddProducts = () => {
                 <p className="text-xs text-gray-500 mt-2">Click an image to set it as the main image. Max 5 images.</p>
               </div>
             </div>
-
             <div>
               <h2 className="text-lg font-semibold mb-4">Basic Information</h2>
               <div className="space-y-4">
@@ -498,17 +494,54 @@ const AddProducts = () => {
                   <label htmlFor="category" className="block text-sm font-medium text-gray-700">
                     Category {errors.category && <span className="text-red-500 text-xs">({errors.category})</span>}
                   </label>
-                  <input
-                    type="text"
-                    id="category"
-                    name="category"
-                    value={product.category}
-                    onChange={handleChange}
-                    className={`mt-1 block w-full border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.category ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    required
-                  />
+                  {isNewCategory ? (
+                    <div className="flex items-center">
+                      <input
+                        type="text"
+                        id="category"
+                        name="category"
+                        value={newCategoryInput}
+                        onChange={handleNewCategoryChange}
+                        className={`mt-1 block w-full border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                          errors.category ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        placeholder="Enter new category"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsNewCategory(false);
+                          setNewCategoryInput('');
+                          setProduct((prev) => ({ ...prev, category: categories[0] || '' }));
+                        }}
+                        className="ml-2 text-blue-600 hover:text-blue-800"
+                      >
+                        <FiX />
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      id="category"
+                      name="category"
+                      value={product.category}
+                      onChange={handleCategoryChange}
+                      className={`mt-1 block w-full border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                        errors.category ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      required
+                    >
+                      <option value="" disabled>
+                        Select a category
+                      </option>
+                      {categories.map((cat, idx) => (
+                        <option key={idx} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                      <option value="new">Add New Category</option>
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="price" className="block text-sm font-medium text-gray-700">
@@ -549,7 +582,6 @@ const AddProducts = () => {
             </div>
           </div>
         )}
-
         {activeTab === 'description' && (
           <div className="mb-6">
             <label htmlFor="description" className="block text-sm font-medium text-gray-700">
@@ -566,7 +598,6 @@ const AddProducts = () => {
             />
           </div>
         )}
-
         {activeTab === 'specifications' && (
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -606,7 +637,6 @@ const AddProducts = () => {
             </div>
           </div>
         )}
-
         {activeTab === 'highlights' && (
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -647,7 +677,6 @@ const AddProducts = () => {
             </div>
           </div>
         )}
-
         {activeTab === 'downloads' && (
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -689,7 +718,6 @@ const AddProducts = () => {
             </div>
           </div>
         )}
-
         <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
           <Link
             to="/admin/products"
