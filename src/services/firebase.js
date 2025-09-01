@@ -2,12 +2,12 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAC05kOcCerZ22jCoyHCn4NLzHSg3aZdmM",
-  authDomain: "hikotek-35497.firebaseapp.com",
-  projectId: "hikotek-35497",
-  storageBucket: "hikotek-35497.appspot.com",  // Fixed the storage bucket URL
-  messagingSenderId: "67685505573",
-  appId: "1:67685505573:web:9e8e728e04df69183e7dcc"
+ apiKey: "AIzaSyD6SJqncZOiIVM7dLEqT0OQAH7iYM0eDhg",
+  authDomain: "hikotek.firebaseapp.com",
+  projectId: "hikotek",
+  storageBucket: "hikotek.firebasestorage.app",
+  messagingSenderId: "871573444811",
+  appId: "1:871573444811:web:6809d4df444e75584e234e"
 };
 
 const app = initializeApp(firebaseConfig);

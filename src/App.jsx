@@ -7,6 +7,7 @@ import AdminEnquiries from './pages/AdminEnquiries';
 import AdminDistributors from './pages/AdminDistributors';
 import ViewProduct from './pages/ViewProduct';
 import EditProducts from './pages/EditProducts';
+import AddressList from './pages/AddressList';
 
 function App() {
   return (
@@ -35,6 +36,8 @@ function App() {
 
       <Route path="/admin/products/view/:id" element={<ViewProduct/>}/>
       <Route path="/admin/products/edit/:id" element={<EditProducts/>}/>
+      <Route path="/admin/address" element={<AddressList/>}/>
+
 
 
     </Routes>

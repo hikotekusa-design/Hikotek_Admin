@@ -5,7 +5,8 @@ import {
   FiMail, 
   FiUsers, 
   FiSettings,
-  FiLogOut
+  FiLogOut,
+  FiMapPin
 } from 'react-icons/fi';
 
 const AdminSidebar = () => {
@@ -61,7 +62,6 @@ const AdminSidebar = () => {
         >
           <FiMail className="mr-3" />
           Enquiries
-          
         </NavLink>
 
         <NavLink 
@@ -74,6 +74,19 @@ const AdminSidebar = () => {
         >
           <FiUsers className="mr-3" />
           Distributors
+        </NavLink>
+
+        {/* Added Address NavLink */}
+        <NavLink 
+          to="/admin/address" 
+          className={({isActive}) => 
+            `flex items-center px-4 py-3 rounded-lg transition-all ${
+              isActive ? 'bg-blue-700 text-white' : 'hover:bg-blue-600'
+            }`
+          }
+        >
+          <FiMapPin className="mr-3" />
+          Address
         </NavLink>
       </nav>
 
