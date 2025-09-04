@@ -17,18 +17,25 @@ export const productApi = {
       });
 
       const data = await response.json();
-      console.log('Create product response:', data); // Debug log
+      console.log('Create product raw response:', data);
 
       if (!response.ok) {
-        throw new Error(data.error || data.errors?.join(', ') || 'Failed to create product');
+        const errorMessage = data.error || data.errors?.join(', ') || 'Failed to create product';
+        throw new Error(errorMessage);
       }
 
-      return data;
+      // Handle both response structures for backward compatibility
+      return {
+        success: true,
+        productId: data.productId, // legacy
+        data: data.data || data.product || { id: data.productId, ...data } // new structure
+      };
     } catch (error) {
       console.error('API Create Product Error:', error);
       throw error;
     }
   },
+
 
   // Get all products
   getAll: async () => {

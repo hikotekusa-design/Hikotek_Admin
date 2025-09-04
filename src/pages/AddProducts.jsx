@@ -267,79 +267,101 @@ const AddProducts = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) {
-      const firstError = Object.keys(errors)[0];
-      if (firstError) {
-        document
-          .querySelector(`[name="${firstError}"], [data-tab="${firstError}"]`)
-          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      return;
+  e.preventDefault();
+  if (!validateForm()) {
+    const firstError = Object.keys(errors)[0];
+    if (firstError) {
+      document
+        .querySelector(`[name="${firstError}"], [data-tab="${firstError}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-    setIsSubmitting(true);
-    setServerError('');
-    try {
-      const formData = new FormData();
-      formData.append('name', product.name.trim());
-      formData.append('price', product.price);
-      formData.append('showPrice', product.showPrice);
-      formData.append('category', product.category.trim());
-      formData.append('description', product.description.trim() || '');
-      formData.append(
-        'specifications',
-        JSON.stringify(product.specifications.filter((s) => s.trim() !== ''))
-      );
-      formData.append(
-        'highlights',
-        JSON.stringify(product.highlights.filter((h) => h.trim() !== ''))
-      );
-      product.imageFiles.forEach((file) => {
-        formData.append('images', file);
-      });
-      product.downloads.forEach((file) => {
-        formData.append('downloads', file);
-      });
-      const result = await productApi.create(formData);
-      console.log('Create product response:', result); // Debug log
-      if (result.success && result.data) {
-        // Set status to active to ensure it appears in /products/showcase
-        await productApi.updateStatus(result.data.id, 'active');
-        alert('Product created successfully!');
-        product.images.forEach((url) => {
-          if (url.startsWith('blob:')) {
-            URL.revokeObjectURL(url);
-          }
-        });
-        if (product.mainImage && product.mainImage.startsWith('blob:')) {
-          URL.revokeObjectURL(product.mainImage);
+    return;
+  }
+  setIsSubmitting(true);
+  setServerError('');
+  try {
+    const formData = new FormData();
+    formData.append('name', product.name.trim());
+    formData.append('price', product.price);
+    formData.append('showPrice', product.showPrice);
+    formData.append('category', product.category.trim());
+    formData.append('description', product.description.trim() || '');
+    formData.append(
+      'specifications',
+      JSON.stringify(product.specifications.filter((s) => s.trim() !== ''))
+    );
+    formData.append(
+      'highlights',
+      JSON.stringify(product.highlights.filter((h) => h.trim() !== ''))
+    );
+    product.imageFiles.forEach((file) => {
+      formData.append('images', file);
+    });
+    product.downloads.forEach((file) => {
+      formData.append('downloads', file);
+    });
+    
+    const result = await productApi.create(formData);
+    console.log('Create product response:', result);
+
+    if (result.success) {
+      // Get the product ID from either data.id or productId (backward compatibility)
+      const productId = result.data?.id || result.productId;
+      
+      if (productId) {
+        try {
+          // Set status to active to ensure it appears in /products/showcase
+          await productApi.updateStatus(productId, 'active');
+          console.log('Product status updated to active');
+        } catch (statusError) {
+          console.warn('Status update failed, but product was created:', statusError);
+          // Continue anyway - the product was created successfully
         }
-        setProduct({
-          name: '',
-          price: '',
-          showPrice: true,
-          category: '',
-          description: '',
-          specifications: [''],
-          highlights: [''],
-          downloads: [],
-          images: [],
-          imageFiles: [],
-          mainImage: '',
-        });
-        setIsNewCategory(false);
-        setNewCategoryInput('');
-        setErrors({});
-        navigate('/admin/products');
-      } else {
-        setServerError(result.error || 'Failed to create product');
       }
-    } catch (error) {
-      setServerError(error.message || 'Failed to create product. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+
+      alert('Product created successfully!');
+      
+      // Clean up blob URLs
+      product.images.forEach((url) => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+      if (product.mainImage && product.mainImage.startsWith('blob:')) {
+        URL.revokeObjectURL(product.mainImage);
+      }
+      
+      // Reset form
+      setProduct({
+        name: '',
+        price: '',
+        showPrice: true,
+        category: '',
+        description: '',
+        specifications: [''],
+        highlights: [''],
+        downloads: [],
+        images: [],
+        imageFiles: [],
+        mainImage: '',
+      });
+      setIsNewCategory(false);
+      setNewCategoryInput('');
+      setErrors({});
+      navigate('/admin/products');
+    } else {
+      setServerError(result.error || 'Failed to create product');
     }
-  };
+  } catch (error) {
+    console.error('Full error details:', {
+      message: error.message,
+      stack: error.stack,
+    });
+    setServerError(error.message || 'Failed to create product. Please try again.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const triggerFileInput = () => {
     if (fileInputRef.current) {

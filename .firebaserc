@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "hikotek-35497"
+  },
+  "targets": {
+    "hikotek-35497": {
+      "hosting": {
+        "hikotekadmin": [
+          "hikotekadmin"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
