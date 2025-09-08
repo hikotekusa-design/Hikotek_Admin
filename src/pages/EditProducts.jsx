@@ -1,36 +1,88 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiUpload, FiTrash2, FiPlus, FiX, FiArrowLeft, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiUpload, FiTrash2, FiPlus, FiX, FiArrowLeft, FiEye, FiEyeOff, FiAlignLeft, FiAlignCenter, FiAlignRight, FiAlignJustify } from 'react-icons/fi';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { productApi } from '../services/productApi';
 
-const EditProducts = () => {
+const EditProduct = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [product, setProduct] = useState({
     name: '',
     price: '',
     showPrice: true,
     category: '',
     description: '',
+    descriptionAlignment: 'left',
     specifications: [''],
+    specificationAlignments: ['left'],
     highlights: [''],
+    highlightAlignments: ['left'],
     downloads: [],
     images: [],
     imageFiles: [],
     mainImage: '',
   });
+  const [categories, setCategories] = useState([]);
+  const [isNewCategory, setIsNewCategory] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
   const [activeTab, setActiveTab] = useState('basic');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
-  const [success, setSuccess] = useState('');
   const fileInputRef = useRef(null);
+  const navigate = useNavigate();
 
-  // Clean up object URLs when component unmounts or images change
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const result = await productApi.getById(id);
+        if (result.success && result.data) {
+          console.log('Fetched product:', result.data); // Debugging
+          setProduct({
+            name: result.data.name || '',
+            price: result.data.price || '',
+            showPrice: result.data.showPrice !== undefined ? result.data.showPrice : true,
+            category: result.data.category || '',
+            description: result.data.description || '',
+            descriptionAlignment: result.data.descriptionAlignment || 'left',
+            specifications: result.data.specifications?.map(spec => spec.text) || [''],
+            specificationAlignments: result.data.specifications?.map(spec => spec.alignment || 'left') || ['left'],
+            highlights: result.data.highlights?.map(hl => hl.text) || [''],
+            highlightAlignments: result.data.highlights?.map(hl => hl.alignment || 'left') || ['left'],
+            downloads: result.data.downloads || [],
+            images: result.data.images || [],
+            imageFiles: [], // New files to be uploaded
+            mainImage: result.data.mainImage || '',
+          });
+        } else {
+          setServerError('Failed to fetch product details');
+        }
+      } catch (err) {
+        setServerError('Error fetching product: ' + err.message);
+      }
+    };
+
+    const fetchCategories = async () => {
+      try {
+        const result = await productApi.getAll();
+        if (result.success && result.data) {
+          const uniqueCategories = [...new Set(result.data.map((p) => p.category?.trim()).filter(Boolean))].sort();
+          setCategories(uniqueCategories);
+        }
+      } catch (err) {
+        setServerError('Error fetching categories: ' + err.message);
+      }
+    };
+
+    fetchProduct();
+    fetchCategories();
+  }, [id]);
+
   useEffect(() => {
     return () => {
       product.images.forEach((url) => {
-        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
       });
       if (product.mainImage && product.mainImage.startsWith('blob:')) {
         URL.revokeObjectURL(product.mainImage);
@@ -38,43 +90,11 @@ const EditProducts = () => {
     };
   }, [product.images, product.mainImage]);
 
-  // Fetch existing product data
-  useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const response = await productApi.getById(id);
-        if (response.success) {
-          const data = response.data;
-          setProduct({
-            name: data.name || '',
-            price: data.price || '',
-            showPrice: data.showPrice || true,
-            category: data.category || '',
-            description: data.description || '',
-            specifications: Array.isArray(data.specifications) ? data.specifications : [''],
-            highlights: Array.isArray(data.highlights) ? data.highlights : [''],
-            downloads: data.downloads || [],
-            images: data.images || [],
-            imageFiles: [],
-            mainImage: data.mainImage || (data.images.length > 0 ? data.images[0] : ''),
-          });
-        } else {
-          setServerError('Failed to fetch product details.');
-        }
-      } catch (error) {
-        setServerError(error.message || 'Failed to fetch product details.');
-      }
-    };
-    fetchProduct();
-  }, [id]);
-
-  // Validate form
   const validateForm = () => {
     const newErrors = {};
-
     if (!product.name.trim()) newErrors.name = 'Product name is required';
     if (!product.price || parseFloat(product.price) <= 0) newErrors.price = 'Valid price is required';
-    if (!product.category.trim()) newErrors.category = 'Category is required';
+    if (!product.category.trim() && !newCategoryInput.trim()) newErrors.category = 'Category is required';
     if (product.images.length === 0) newErrors.images = 'At least one image is required';
     if (product.specifications.some((spec) => !spec.trim())) {
       newErrors.specifications = 'All specifications must be filled';
@@ -82,48 +102,95 @@ const EditProducts = () => {
     if (product.highlights.some((highlight) => !highlight.trim())) {
       newErrors.highlights = 'All highlights must be filled';
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     setProduct((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: '' }));
+    }
     setServerError('');
   };
 
-  // Handle specification changes
+  const handleCategoryChange = (e) => {
+    const value = e.target.value;
+    if (value === 'new') {
+      setIsNewCategory(true);
+      setProduct((prev) => ({ ...prev, category: '' }));
+    } else {
+      setIsNewCategory(false);
+      setNewCategoryInput('');
+      setProduct((prev) => ({ ...prev, category: value }));
+    }
+    if (errors.category) {
+      setErrors((prev) => ({ ...prev, category: '' }));
+    }
+    setServerError('');
+  };
+
+  const handleNewCategoryChange = (e) => {
+    setNewCategoryInput(e.target.value);
+    setProduct((prev) => ({ ...prev, category: e.target.value }));
+    if (errors.category) {
+      setErrors((prev) => ({ ...prev, category: '' }));
+    }
+    setServerError('');
+  };
+
   const handleSpecChange = (index, value) => {
     const newSpecs = [...product.specifications];
     newSpecs[index] = value;
     setProduct((prev) => ({ ...prev, specifications: newSpecs }));
-    if (errors.specifications) setErrors((prev) => ({ ...prev, specifications: '' }));
+    if (errors.specifications) {
+      setErrors((prev) => ({ ...prev, specifications: '' }));
+    }
     setServerError('');
   };
 
-  // Handle highlights changes
   const handleHighlightChange = (index, value) => {
     const newHighlights = [...product.highlights];
     newHighlights[index] = value;
     setProduct((prev) => ({ ...prev, highlights: newHighlights }));
-    if (errors.highlights) setErrors((prev) => ({ ...prev, highlights: '' }));
+    if (errors.highlights) {
+      setErrors((prev) => ({ ...prev, highlights: '' }));
+    }
     setServerError('');
   };
 
-  // Add new specification field
+  const handleAlignmentChange = (field, index, alignment) => {
+    console.log(`Setting ${field} alignment to: ${alignment}`); // Debugging
+    if (field === 'description') {
+      setProduct((prev) => ({ ...prev, descriptionAlignment: alignment }));
+    } else if (field === 'specifications') {
+      const newAlignments = [...product.specificationAlignments];
+      newAlignments[index] = alignment;
+      setProduct((prev) => ({ ...prev, specificationAlignments: newAlignments }));
+    } else if (field === 'highlights') {
+      const newAlignments = [...product.highlightAlignments];
+      newAlignments[index] = alignment;
+      setProduct((prev) => ({ ...prev, highlightAlignments: newAlignments }));
+    }
+  };
+
   const addSpecField = () => {
-    setProduct((prev) => ({ ...prev, specifications: [...prev.specifications, ''] }));
+    setProduct((prev) => ({ 
+      ...prev, 
+      specifications: [...prev.specifications, ''],
+      specificationAlignments: [...prev.specificationAlignments, 'left']
+    }));
   };
 
-  // Add new highlight field
   const addHighlightField = () => {
-    setProduct((prev) => ({ ...prev, highlights: [...prev.highlights, ''] }));
+    setProduct((prev) => ({ 
+      ...prev, 
+      highlights: [...prev.highlights, ''],
+      highlightAlignments: [...prev.highlightAlignments, 'left']
+    }));
   };
 
-  // Validate file type and size
   const validateFile = (file, allowedTypes, maxSizeMB = 10) => {
     if (!allowedTypes.includes(file.type)) {
       return `File type not allowed for ${file.name}. Allowed types: ${allowedTypes.join(', ')}`;
@@ -134,20 +201,74 @@ const EditProducts = () => {
     return null;
   };
 
-  // Handle image upload
-  const handleImageUpload = (e) => {
+  const handleDownloadUpload = (e) => {
     const files = Array.from(e.target.files);
-    const totalImages = product.imageFiles.length + files.length;
-    if (totalImages > 5) {
-      setErrors((prev) => ({ ...prev, images: 'Maximum 5 images allowed' }));
+    if (product.downloads.length + files.length > 3) {
+      setErrors((prev) => ({
+        ...prev,
+        downloads: 'Maximum 3 PDF files allowed',
+      }));
       return;
     }
+    const validFiles = [];
+    const newErrors = { ...errors };
+    files.forEach((file) => {
+      const error = validateFile(file, ['application/pdf'], 10);
+      if (error) {
+        newErrors.downloads = newErrors.downloads ? `${newErrors.downloads}, ${error}` : error;
+      } else {
+        validFiles.push(file);
+      }
+    });
+    setErrors(newErrors);
+    if (validFiles.length > 0) {
+      setProduct((prev) => ({
+        ...prev,
+        downloads: [...prev.downloads, ...validFiles],
+      }));
+    }
+    e.target.value = '';
+  };
 
+  const removeSpecField = (index) => {
+    const newSpecs = product.specifications.filter((_, i) => i !== index);
+    const newAlignments = product.specificationAlignments.filter((_, i) => i !== index);
+    setProduct((prev) => ({ ...prev, specifications: newSpecs, specificationAlignments: newAlignments }));
+    if (errors.specifications) {
+      setErrors((prev) => ({ ...prev, specifications: '' }));
+    }
+  };
+
+  const removeHighlightField = (index) => {
+    const newHighlights = product.highlights.filter((_, i) => i !== index);
+    const newAlignments = product.highlightAlignments.filter((_, i) => i !== index);
+    setProduct((prev) => ({ ...prev, highlights: newHighlights, highlightAlignments: newAlignments }));
+    if (errors.highlights) {
+      setErrors((prev) => ({ ...prev, highlights: '' }));
+    }
+  };
+
+  const removeDownloadFile = (index) => {
+    const newDownloads = product.downloads.filter((_, i) => i !== index);
+    setProduct((prev) => ({ ...prev, downloads: newDownloads }));
+    if (errors.downloads) {
+      setErrors((prev) => ({ ...prev, downloads: '' }));
+    }
+  };
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    if (product.imageFiles.length + files.length > 5) {
+      setErrors((prev) => ({
+        ...prev,
+        images: 'Maximum 5 images allowed',
+      }));
+      return;
+    }
     const newImageFiles = [...product.imageFiles];
     const newImageUrls = [...product.images];
     const newErrors = { ...errors };
     let hasValidFiles = false;
-
     files.forEach((file) => {
       const error = validateFile(file, ['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
       if (error) {
@@ -159,9 +280,7 @@ const EditProducts = () => {
         hasValidFiles = true;
       }
     });
-
     setErrors(newErrors);
-
     if (hasValidFiles) {
       setProduct((prev) => ({
         ...prev,
@@ -173,107 +292,42 @@ const EditProducts = () => {
         setErrors((prev) => ({ ...prev, images: '' }));
       }
     }
-
     e.target.value = '';
   };
 
-  // Handle download upload
-  const handleDownloadUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const totalDownloads = product.downloads.length + files.length;
-    if (totalDownloads > 3) {
-      setErrors((prev) => ({ ...prev, downloads: 'Maximum 3 PDF files allowed' }));
-      return;
+  const setMainImage = (img) => {
+    setProduct((prev) => ({ ...prev, mainImage: img }));
+    if (errors.mainImage) {
+      setErrors((prev) => ({ ...prev, mainImage: '' }));
     }
-
-    const validFiles = [];
-    const newErrors = { ...errors };
-
-    files.forEach((file) => {
-      const error = validateFile(file, ['application/pdf'], 10);
-      if (error) {
-        newErrors.downloads = newErrors.downloads
-          ? `${newErrors.downloads}, ${error}`
-          : error;
-      } else {
-        validFiles.push(file);
-      }
-    });
-
-    setErrors(newErrors);
-
-    if (validFiles.length > 0) {
-      setProduct((prev) => ({
-        ...prev,
-        downloads: [...prev.downloads, ...validFiles],
-      }));
-    }
-
-    e.target.value = '';
   };
 
-  // Remove specification field
-  const removeSpecField = (index) => {
-    const newSpecs = product.specifications.filter((_, i) => i !== index);
-    setProduct((prev) => ({ ...prev, specifications: newSpecs }));
-    if (errors.specifications) setErrors((prev) => ({ ...prev, specifications: '' }));
-  };
-
-  // Remove highlight field
-  const removeHighlightField = (index) => {
-    const newHighlights = product.highlights.filter((_, i) => i !== index);
-    setProduct((prev) => ({ ...prev, highlights: newHighlights }));
-    if (errors.highlights) setErrors((prev) => ({ ...prev, highlights: '' }));
-  };
-
-  // Remove image
   const removeImage = (index) => {
     if (!window.confirm('Are you sure you want to remove this image?')) return;
-
     const newImages = product.images.filter((_, i) => i !== index);
     const newImageFiles = product.imageFiles.filter((_, i) => i !== index);
-
     if (product.images[index].startsWith('blob:')) {
       URL.revokeObjectURL(product.images[index]);
     }
-
     const newMainImage =
       product.mainImage === product.images[index] ? newImages[0] || '' : product.mainImage;
-
     setProduct((prev) => ({
       ...prev,
       images: newImages,
       imageFiles: newImageFiles,
       mainImage: newMainImage,
     }));
-
-    if (newImages.length === 0 && !errors.images) {
+    if (newImages.length === 0) {
       setErrors((prev) => ({ ...prev, images: 'At least one image is required' }));
     }
   };
 
-  // Remove download
-  const removeDownloadFile = (index) => {
-    const newDownloads = product.downloads.filter((_, i) => i !== index);
-    setProduct((prev) => ({ ...prev, downloads: newDownloads }));
-    if (errors.downloads) setErrors((prev) => ({ ...prev, downloads: '' }));
-  };
-
-  // Set main image
-  const setMainImage = (img) => {
-    setProduct((prev) => ({ ...prev, mainImage: img }));
-    if (errors.mainImage) setErrors((prev) => ({ ...prev, mainImage: '' }));
-  };
-
-  // Toggle price visibility
   const togglePriceVisibility = () => {
     setProduct((prev) => ({ ...prev, showPrice: !prev.showPrice }));
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!validateForm()) {
       const firstError = Object.keys(errors)[0];
       if (firstError) {
@@ -283,62 +337,108 @@ const EditProducts = () => {
       }
       return;
     }
-
     setIsSubmitting(true);
     setServerError('');
-    setSuccess('');
-
     try {
       const formData = new FormData();
-      formData.append('name', product.name);
+      formData.append('name', product.name.trim());
       formData.append('price', product.price);
       formData.append('showPrice', product.showPrice);
-      formData.append('category', product.category);
-      formData.append('description', product.description || '');
+      formData.append('category', product.category.trim());
+      formData.append('description', product.description.trim() || '');
+      formData.append('descriptionAlignment', product.descriptionAlignment);
       formData.append(
         'specifications',
-        JSON.stringify(product.specifications.filter((s) => s.trim() !== ''))
+        JSON.stringify(
+          product.specifications
+            .filter((s) => s.trim() !== '')
+            .map((spec, index) => ({
+              text: spec,
+              alignment: product.specificationAlignments[index] || 'left'
+            }))
+        )
       );
       formData.append(
         'highlights',
-        JSON.stringify(product.highlights.filter((h) => h.trim() !== ''))
+        JSON.stringify(
+          product.highlights
+            .filter((h) => h.trim() !== '')
+            .map((highlight, index) => ({
+              text: highlight,
+              alignment: product.highlightAlignments[index] || 'left'
+            }))
+        )
       );
-      product.imageFiles.forEach((file) => formData.append('images', file));
+      product.imageFiles.forEach((file) => {
+        formData.append('images', file);
+      });
       product.downloads.forEach((file) => {
-        if (file instanceof File) formData.append('downloads', file);
+        formData.append('downloads', file);
       });
 
-      // Indicate to keep existing images/downloads if no new ones are uploaded
-      formData.append('keepExistingImages', product.images.length > product.imageFiles.length ? 'true' : 'false');
-      formData.append('keepExistingDownloads', product.downloads.every(d => typeof d === 'string') ? 'true' : 'false');
+      console.log('Submitting form with descriptionAlignment:', product.descriptionAlignment); // Debugging
+      const result = await productApi.update(id, formData);
+      console.log('Update product response:', result);
 
-      const response = await productApi.update(id, formData);
-      console.log('Update product response:', response);
-
-      if (response.success) {
-        setSuccess('Product updated successfully!');
-        setTimeout(() => navigate('/admin/products'), 2000);
-        // Clean up blob URLs for new images
-        product.imageFiles.forEach((file, idx) => {
-          if (product.images[idx] && product.images[idx].startsWith('blob:')) {
-            URL.revokeObjectURL(product.images[idx]);
-          }
-        });
+      if (result.success) {
+        alert('Product updated successfully!');
+        navigate('/admin/products');
       } else {
-        setServerError(response.error || 'Failed to update product.');
+        setServerError(result.error || 'Failed to update product');
       }
     } catch (error) {
-      console.error('Error updating product:', error);
+      console.error('Full error details:', {
+        message: error.message,
+        stack: error.stack,
+      });
       setServerError(error.message || 'Failed to update product. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Trigger file input click
   const triggerFileInput = () => {
-    if (fileInputRef.current) fileInputRef.current.click();
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
   };
+
+  const AlignmentButtons = ({ field, index, currentAlignment }) => (
+    <div className="flex space-x-1 mt-1">
+      <button
+        type="button"
+        onClick={() => handleAlignmentChange(field, index, 'left')}
+        className={`p-1 rounded ${currentAlignment === 'left' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
+        title="Align left"
+      >
+        <FiAlignLeft size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleAlignmentChange(field, index, 'center')}
+        className={`p-1 rounded ${currentAlignment === 'center' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
+        title="Align center"
+      >
+        <FiAlignCenter size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleAlignmentChange(field, index, 'right')}
+        className={`p-1 rounded ${currentAlignment === 'right' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
+        title="Align right"
+      >
+        <FiAlignRight size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleAlignmentChange(field, index, 'justify')}
+        className={`p-1 rounded ${currentAlignment === 'justify' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
+        title="Justify"
+      >
+        <FiAlignJustify size={14} />
+      </button>
+    </div>
+  );
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -351,18 +451,11 @@ const EditProducts = () => {
         </Link>
       </div>
       <h1 className="text-2xl font-bold mb-6">Edit Product</h1>
-
       {serverError && (
         <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
           {serverError}
         </div>
       )}
-      {success && (
-        <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-          {success}
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6">
         <div className="mb-6 border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
@@ -383,7 +476,6 @@ const EditProducts = () => {
             ))}
           </nav>
         </div>
-
         {activeTab === 'basic' && (
           <div className="grid md:grid-cols-2 gap-8 mb-8">
             <div>
@@ -400,7 +492,9 @@ const EditProducts = () => {
                       type="button"
                       onClick={() => {
                         const index = product.images.indexOf(product.mainImage);
-                        if (index !== -1) removeImage(index);
+                        if (index !== -1) {
+                          removeImage(index);
+                        }
                       }}
                       className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
@@ -432,7 +526,6 @@ const EditProducts = () => {
                 )}
                 {errors.images && <p className="text-red-500 text-xs mt-1">{errors.images}</p>}
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Additional Images</label>
                 <div className="grid grid-cols-4 gap-2">
@@ -471,7 +564,6 @@ const EditProducts = () => {
                 <p className="text-xs text-gray-500 mt-2">Click an image to set it as the main image. Max 5 images.</p>
               </div>
             </div>
-
             <div>
               <h2 className="text-lg font-semibold mb-4">Basic Information</h2>
               <div className="space-y-4">
@@ -495,17 +587,54 @@ const EditProducts = () => {
                   <label htmlFor="category" className="block text-sm font-medium text-gray-700">
                     Category {errors.category && <span className="text-red-500 text-xs">({errors.category})</span>}
                   </label>
-                  <input
-                    type="text"
-                    id="category"
-                    name="category"
-                    value={product.category}
-                    onChange={handleChange}
-                    className={`mt-1 block w-full border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.category ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    required
-                  />
+                  {isNewCategory ? (
+                    <div className="flex items-center">
+                      <input
+                        type="text"
+                        id="category"
+                        name="category"
+                        value={newCategoryInput}
+                        onChange={handleNewCategoryChange}
+                        className={`mt-1 block w-full border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                          errors.category ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        placeholder="Enter new category"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsNewCategory(false);
+                          setNewCategoryInput('');
+                          setProduct((prev) => ({ ...prev, category: categories[0] || '' }));
+                        }}
+                        className="ml-2 text-blue-600 hover:text-blue-800"
+                      >
+                        <FiX />
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      id="category"
+                      name="category"
+                      value={product.category}
+                      onChange={handleCategoryChange}
+                      className={`mt-1 block w-full border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                        errors.category ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      required
+                    >
+                      <option value="" disabled>
+                        Select a category
+                      </option>
+                      {categories.map((cat, idx) => (
+                        <option key={idx} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                      <option value="new">Add New Category</option>
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="price" className="block text-sm font-medium text-gray-700">
@@ -546,50 +675,69 @@ const EditProducts = () => {
             </div>
           </div>
         )}
-
         {activeTab === 'description' && (
           <div className="mb-6">
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-              Product Description
-            </label>
+            <div className="flex justify-between items-center mb-2">
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                Product Description
+              </label>
+              <AlignmentButtons 
+                field="description" 
+                index={0} 
+                currentAlignment={product.descriptionAlignment} 
+              />
+            </div>
             <textarea
               id="description"
               name="description"
               rows={6}
               value={product.description}
               onChange={handleChange}
+              style={{ textAlign: product.descriptionAlignment }}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               placeholder="Enter detailed product description..."
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Current alignment: {product.descriptionAlignment}
+            </p>
           </div>
         )}
-
         {activeTab === 'specifications' && (
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Specifications {errors.specifications && <span className="text-red-500 text-xs">({errors.specifications})</span>}
             </label>
-            <div className="space-y-2">
+            <div className="space-y-4">
               {product.specifications.map((spec, index) => (
-                <div key={index} className="flex items-center">
-                  <input
-                    type="text"
-                    value={spec}
-                    onChange={(e) => handleSpecChange(index, e.target.value)}
-                    className={`flex-1 block border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.specifications ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder={`Specification ${index + 1}`}
-                  />
-                  {product.specifications.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeSpecField(index)}
-                      className="ml-2 text-red-500 hover:text-red-700"
-                    >
-                      <FiTrash2 />
-                    </button>
-                  )}
+                <div key={index} className="border rounded-md p-3">
+                  <div className="flex items-center mb-2">
+                    <input
+                      type="text"
+                      value={spec}
+                      onChange={(e) => handleSpecChange(index, e.target.value)}
+                      className={`flex-1 block border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                        errors.specifications ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder={`Specification ${index + 1}`}
+                    />
+                    {product.specifications.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeSpecField(index)}
+                        className="ml-2 text-red-500 hover:text-red-700"
+                      >
+                        <FiTrash2 />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Text alignment:</span>
+                    <AlignmentButtons 
+                      field="specifications" 
+                      index={index} 
+                      currentAlignment={product.specificationAlignments[index] || 'left'} 
+                    />
+                  </div>
                 </div>
               ))}
               <button
@@ -603,34 +751,43 @@ const EditProducts = () => {
             </div>
           </div>
         )}
-
         {activeTab === 'highlights' && (
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Product Highlights/Bullet Points{' '}
               {errors.highlights && <span className="text-red-500 text-xs">({errors.highlights})</span>}
             </label>
-            <div className="space-y-2">
+            <div className="space-y-4">
               {product.highlights.map((highlight, index) => (
-                <div key={index} className="flex items-center">
-                  <input
-                    type="text"
-                    value={highlight}
-                    onChange={(e) => handleHighlightChange(index, e.target.value)}
-                    className={`flex-1 block border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.highlights ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder={`Highlight ${index + 1}`}
-                  />
-                  {product.highlights.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeHighlightField(index)}
-                      className="ml-2 text-red-500 hover:text-red-700"
-                    >
-                      <FiTrash2 />
-                    </button>
-                  )}
+                <div key={index} className="border rounded-md p-3">
+                  <div className="flex items-center mb-2">
+                    <input
+                      type="text"
+                      value={highlight}
+                      onChange={(e) => handleHighlightChange(index, e.target.value)}
+                      className={`flex-1 block border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                        errors.highlights ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder={`Highlight ${index + 1}`}
+                    />
+                    {product.highlights.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeHighlightField(index)}
+                        className="ml-2 text-red-500 hover:text-red-700"
+                      >
+                        <FiTrash2 />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Text alignment:</span>
+                    <AlignmentButtons 
+                      field="highlights" 
+                      index={index} 
+                      currentAlignment={product.highlightAlignments[index] || 'left'} 
+                    />
+                  </div>
                 </div>
               ))}
               <button
@@ -644,7 +801,6 @@ const EditProducts = () => {
             </div>
           </div>
         )}
-
         {activeTab === 'downloads' && (
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -656,9 +812,9 @@ const EditProducts = () => {
                 <div key={index} className="flex items-center justify-between p-3 border rounded-md">
                   <div className="flex items-center">
                     <FiUpload className="mr-2 text-gray-500" />
-                    <span className="text-sm truncate">{typeof file === 'string' ? file.split('/').pop() : file.name}</span>
+                    <span className="text-sm truncate">{file.name}</span>
                     <span className="text-xs text-gray-500 ml-2">
-                      {typeof file === 'string' ? '' : `(${(file.size / 1024 / 1024).toFixed(2)} MB)`}
+                      ({(file.size / 1024 / 1024).toFixed(2)} MB)
                     </span>
                   </div>
                   <button
@@ -686,7 +842,6 @@ const EditProducts = () => {
             </div>
           </div>
         )}
-
         <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
           <Link
             to="/admin/products"
@@ -724,7 +879,7 @@ const EditProducts = () => {
                 Updating...
               </>
             ) : (
-              'Save Changes'
+              'Update Product'
             )}
           </button>
         </div>
@@ -733,4 +888,4 @@ const EditProducts = () => {
   );
 };
 
-export default EditProducts;
+export default EditProduct;

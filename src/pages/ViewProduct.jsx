@@ -23,12 +23,19 @@ const ViewProduct = () => {
       try {
         const response = await productApi.getById(id);
         if (response.success) {
-          setProduct(response.data);
+          const fetchedProduct = response.data;
+          console.log('Fetched product descriptionAlignment:', fetchedProduct.descriptionAlignment);
+          setProduct({
+            ...fetchedProduct,
+            descriptionAlignment: ['left', 'center', 'right', 'justify'].includes(fetchedProduct.descriptionAlignment)
+              ? fetchedProduct.descriptionAlignment
+              : 'left',
+          });
           // Set the first image as selected, or mainImage if available
-          if (response.data.images && response.data.images.length > 0) {
-            setSelectedImage(response.data.images[0]);
-          } else if (response.data.mainImage) {
-            setSelectedImage(response.data.mainImage);
+          if (fetchedProduct.images && fetchedProduct.images.length > 0) {
+            setSelectedImage(fetchedProduct.images[0]);
+          } else if (fetchedProduct.mainImage) {
+            setSelectedImage(fetchedProduct.mainImage);
           }
         } else {
           setError('Failed to fetch product details. Please try again.');
@@ -54,35 +61,98 @@ const ViewProduct = () => {
     e.target.src = fallbackImage;
   };
 
+  // Parse specifications and highlights which might be stored as strings or objects
+  const parseProductData = (product) => {
+    if (!product) return product;
+
+    const parsedProduct = { ...product };
+
+    // Parse specifications if they're stored as a string
+    if (parsedProduct.specifications && typeof parsedProduct.specifications === 'string') {
+      try {
+        parsedProduct.specifications = JSON.parse(parsedProduct.specifications);
+      } catch (e) {
+        console.error('Error parsing specifications:', e);
+        parsedProduct.specifications = Array.isArray(parsedProduct.specifications) ? parsedProduct.specifications : [];
+      }
+    }
+
+    // Parse highlights if they're stored as a string
+    if (parsedProduct.highlights && typeof parsedProduct.highlights === 'string') {
+      try {
+        parsedProduct.highlights = JSON.parse(parsedProduct.highlights);
+      } catch (e) {
+        console.error('Error parsing highlights:', e);
+        parsedProduct.highlights = Array.isArray(parsedProduct.highlights) ? parsedProduct.highlights : [];
+      }
+    }
+
+    // Ensure descriptionAlignment is valid
+    parsedProduct.descriptionAlignment = ['left', 'center', 'right', 'justify'].includes(parsedProduct.descriptionAlignment)
+      ? parsedProduct.descriptionAlignment
+      : 'left';
+
+    return parsedProduct;
+  };
+
   const renderContent = () => {
     if (!product) return null;
+
+    const parsedProduct = parseProductData(product);
 
     switch (activeTab) {
       case 'description':
         return (
           <div className="text-gray-700 leading-relaxed">
-            <p className="mb-4 text-lg">{product.description || 'No description available.'}</p>
-            {product.specifications && product.specifications.length > 0 && (
+            <div
+              className={`mb-4 text-lg text-${parsedProduct.descriptionAlignment} whitespace-pre-wrap`}
+              style={{ textAlign: parsedProduct.descriptionAlignment }}
+            >
+              {parsedProduct.description || 'No description available.'}
+            </div>
+
+            {parsedProduct.specifications && parsedProduct.specifications.length > 0 && (
               <>
                 <p className="font-semibold text-orange-600 mt-6 text-xl">SPECIFICATIONS</p>
-                <ul className="list-disc ml-8">
-                  {product.specifications.map((spec, idx) => (
-                    <li key={idx} className="text-base mb-2">
-                      {spec}
-                    </li>
-                  ))}
+                <ul className="ml-8">
+                  {parsedProduct.specifications.map((spec, idx) => {
+                    // Handle both string format and object format
+                    const specText = typeof spec === 'object' ? spec.text : spec;
+                    const specAlignment = typeof spec === 'object' ? spec.alignment : 'left';
+
+                    return (
+                      <li
+                        key={idx}
+                        className={`text-base mb-2 text-${specAlignment}`}
+                        style={{ textAlign: specAlignment }}
+                      >
+                        {specText}
+                      </li>
+                    );
+                  })}
                 </ul>
               </>
             )}
-            {product.highlights && product.highlights.length > 0 && (
+
+            {parsedProduct.highlights && parsedProduct.highlights.length > 0 && (
               <>
                 <p className="font-semibold text-orange-600 mt-6 text-xl">HIGHLIGHTS</p>
-                <ul className="list-disc ml-8">
-                  {product.highlights.map((highlight, idx) => (
-                    <li key={idx} className="text-base mb-2">
-                      {highlight}
-                    </li>
-                  ))}
+                <ul className="ml-8">
+                  {parsedProduct.highlights.map((highlight, idx) => {
+                    // Handle both string format and object format
+                    const highlightText = typeof highlight === 'object' ? highlight.text : highlight;
+                    const highlightAlignment = typeof highlight === 'object' ? highlight.alignment : 'left';
+
+                    return (
+                      <li
+                        key={idx}
+                        className={`text-base mb-2 text-${highlightAlignment}`}
+                        style={{ textAlign: highlightAlignment }}
+                      >
+                        {highlightText}
+                      </li>
+                    );
+                  })}
                 </ul>
               </>
             )}
@@ -172,8 +242,8 @@ const ViewProduct = () => {
                       <div
                         key={idx}
                         className={`w-16 h-16 rounded-md cursor-pointer overflow-hidden transition-all duration-300 border-2 ${
-                          selectedImage === img 
-                            ? 'border-blue-600 opacity-100' 
+                          selectedImage === img
+                            ? 'border-blue-600 opacity-100'
                             : 'border-gray-300 opacity-70 hover:opacity-100'
                         }`}
                         onClick={() => setSelectedImage(img)}
@@ -212,23 +282,27 @@ const ViewProduct = () => {
               <div className="bg-[#f6f6f6]">
                 <h2 className="text-3xl mb-4 font-bold text-gray-800">{product.name}</h2>
                 <p className="text-black font-bold text-2xl mb-6">
-                  Price: {product.showPrice ? `${product.price} SAR` : 'Hidden'}
+                  Price: {product.showPrice ? `${product.price} USD` : 'Hidden'}
                 </p>
+
                 {product.highlights && product.highlights.length > 0 && (
-                  <ul className="list-disc ml-5 space-y-2 mb-6">
-                    {product.highlights.map((highlight, idx) => (
-                      <li key={idx} className="text-gray-700">
-                        {highlight}
-                      </li>
-                    ))}
+                  <ul className="ml-5 space-y-2 mb-6">
+                    {parseProductData(product).highlights.map((highlight, idx) => {
+                      // Handle both string format and object format
+                      const highlightText = typeof highlight === 'object' ? highlight.text : highlight;
+
+                      return (
+                        <li key={idx} className="text-gray-700">
+                          {highlightText}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
+
                 <p className="text-gray-700 mb-2">
                   <span className="font-semibold">Category:</span> {product.category || 'N/A'}
                 </p>
-                {/* <p className="text-gray-700">
-                  <span className="font-semibold">Status:</span> {product.status || 'N/A'}
-                </p> */}
               </div>
             </div>
 

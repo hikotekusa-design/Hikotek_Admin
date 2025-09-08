@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiUpload, FiTrash2, FiPlus, FiX, FiArrowLeft, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiUpload, FiTrash2, FiPlus, FiX, FiArrowLeft, FiEye, FiEyeOff, FiAlignLeft, FiAlignCenter, FiAlignRight, FiAlignJustify } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import { productApi } from '../services/productApi';
 
@@ -10,8 +10,11 @@ const AddProducts = () => {
     showPrice: true,
     category: '',
     description: '',
+    descriptionAlignment: 'left',
     specifications: [''],
+    specificationAlignments: ['left'],
     highlights: [''],
+    highlightAlignments: ['left'],
     downloads: [],
     images: [],
     imageFiles: [],
@@ -125,12 +128,35 @@ const AddProducts = () => {
     setServerError('');
   };
 
+  const handleAlignmentChange = (field, index, alignment) => {
+    console.log(`Setting ${field} alignment to: ${alignment}`); // Debugging
+    if (field === 'description') {
+      setProduct((prev) => ({ ...prev, descriptionAlignment: alignment }));
+    } else if (field === 'specifications') {
+      const newAlignments = [...product.specificationAlignments];
+      newAlignments[index] = alignment;
+      setProduct((prev) => ({ ...prev, specificationAlignments: newAlignments }));
+    } else if (field === 'highlights') {
+      const newAlignments = [...product.highlightAlignments];
+      newAlignments[index] = alignment;
+      setProduct((prev) => ({ ...prev, highlightAlignments: newAlignments }));
+    }
+  };
+
   const addSpecField = () => {
-    setProduct((prev) => ({ ...prev, specifications: [...prev.specifications, ''] }));
+    setProduct((prev) => ({ 
+      ...prev, 
+      specifications: [...prev.specifications, ''],
+      specificationAlignments: [...prev.specificationAlignments, 'left']
+    }));
   };
 
   const addHighlightField = () => {
-    setProduct((prev) => ({ ...prev, highlights: [...prev.highlights, ''] }));
+    setProduct((prev) => ({ 
+      ...prev, 
+      highlights: [...prev.highlights, ''],
+      highlightAlignments: [...prev.highlightAlignments, 'left']
+    }));
   };
 
   const validateFile = (file, allowedTypes, maxSizeMB = 10) => {
@@ -174,7 +200,8 @@ const AddProducts = () => {
 
   const removeSpecField = (index) => {
     const newSpecs = product.specifications.filter((_, i) => i !== index);
-    setProduct((prev) => ({ ...prev, specifications: newSpecs }));
+    const newAlignments = product.specificationAlignments.filter((_, i) => i !== index);
+    setProduct((prev) => ({ ...prev, specifications: newSpecs, specificationAlignments: newAlignments }));
     if (errors.specifications) {
       setErrors((prev) => ({ ...prev, specifications: '' }));
     }
@@ -182,7 +209,8 @@ const AddProducts = () => {
 
   const removeHighlightField = (index) => {
     const newHighlights = product.highlights.filter((_, i) => i !== index);
-    setProduct((prev) => ({ ...prev, highlights: newHighlights }));
+    const newAlignments = product.highlightAlignments.filter((_, i) => i !== index);
+    setProduct((prev) => ({ ...prev, highlights: newHighlights, highlightAlignments: newAlignments }));
     if (errors.highlights) {
       setErrors((prev) => ({ ...prev, highlights: '' }));
     }
@@ -267,107 +295,158 @@ const AddProducts = () => {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!validateForm()) {
-    const firstError = Object.keys(errors)[0];
-    if (firstError) {
-      document
-        .querySelector(`[name="${firstError}"], [data-tab="${firstError}"]`)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-    return;
-  }
-  setIsSubmitting(true);
-  setServerError('');
-  try {
-    const formData = new FormData();
-    formData.append('name', product.name.trim());
-    formData.append('price', product.price);
-    formData.append('showPrice', product.showPrice);
-    formData.append('category', product.category.trim());
-    formData.append('description', product.description.trim() || '');
-    formData.append(
-      'specifications',
-      JSON.stringify(product.specifications.filter((s) => s.trim() !== ''))
-    );
-    formData.append(
-      'highlights',
-      JSON.stringify(product.highlights.filter((h) => h.trim() !== ''))
-    );
-    product.imageFiles.forEach((file) => {
-      formData.append('images', file);
-    });
-    product.downloads.forEach((file) => {
-      formData.append('downloads', file);
-    });
-    
-    const result = await productApi.create(formData);
-    console.log('Create product response:', result);
-
-    if (result.success) {
-      // Get the product ID from either data.id or productId (backward compatibility)
-      const productId = result.data?.id || result.productId;
-      
-      if (productId) {
-        try {
-          // Set status to active to ensure it appears in /products/showcase
-          await productApi.updateStatus(productId, 'active');
-          console.log('Product status updated to active');
-        } catch (statusError) {
-          console.warn('Status update failed, but product was created:', statusError);
-          // Continue anyway - the product was created successfully
-        }
+    e.preventDefault();
+    if (!validateForm()) {
+      const firstError = Object.keys(errors)[0];
+      if (firstError) {
+        document
+          .querySelector(`[name="${firstError}"], [data-tab="${firstError}"]`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-
-      alert('Product created successfully!');
-      
-      // Clean up blob URLs
-      product.images.forEach((url) => {
-        if (url.startsWith('blob:')) {
-          URL.revokeObjectURL(url);
-        }
-      });
-      if (product.mainImage && product.mainImage.startsWith('blob:')) {
-        URL.revokeObjectURL(product.mainImage);
-      }
-      
-      // Reset form
-      setProduct({
-        name: '',
-        price: '',
-        showPrice: true,
-        category: '',
-        description: '',
-        specifications: [''],
-        highlights: [''],
-        downloads: [],
-        images: [],
-        imageFiles: [],
-        mainImage: '',
-      });
-      setIsNewCategory(false);
-      setNewCategoryInput('');
-      setErrors({});
-      navigate('/admin/products');
-    } else {
-      setServerError(result.error || 'Failed to create product');
+      return;
     }
-  } catch (error) {
-    console.error('Full error details:', {
-      message: error.message,
-      stack: error.stack,
-    });
-    setServerError(error.message || 'Failed to create product. Please try again.');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+    setIsSubmitting(true);
+    setServerError('');
+    try {
+      const formData = new FormData();
+      formData.append('name', product.name.trim());
+      formData.append('price', product.price);
+      formData.append('showPrice', product.showPrice);
+      formData.append('category', product.category.trim());
+      formData.append('description', product.description.trim() || '');
+      formData.append('descriptionAlignment', product.descriptionAlignment);
+      formData.append(
+        'specifications',
+        JSON.stringify(
+          product.specifications
+            .filter((s) => s.trim() !== '')
+            .map((spec, index) => ({
+              text: spec,
+              alignment: product.specificationAlignments[index] || 'left'
+            }))
+        )
+      );
+      formData.append(
+        'highlights',
+        JSON.stringify(
+          product.highlights
+            .filter((h) => h.trim() !== '')
+            .map((highlight, index) => ({
+              text: highlight,
+              alignment: product.highlightAlignments[index] || 'left'
+            }))
+        )
+      );
+      product.imageFiles.forEach((file) => {
+        formData.append('images', file);
+      });
+      product.downloads.forEach((file) => {
+        formData.append('downloads', file);
+      });
+      
+      console.log('Submitting form with descriptionAlignment:', product.descriptionAlignment); // Debugging
+      const result = await productApi.create(formData);
+      console.log('Create product response:', result);
+
+      if (result.success) {
+        const productId = result.data?.id || result.productId;
+        
+        if (productId) {
+          try {
+            await productApi.updateStatus(productId, 'active');
+            console.log('Product status updated to active');
+          } catch (statusError) {
+            console.warn('Status update failed, but product was created:', statusError);
+          }
+        }
+
+        alert('Product created successfully!');
+        
+        product.images.forEach((url) => {
+          if (url.startsWith('blob:')) {
+            URL.revokeObjectURL(url);
+          }
+        });
+        if (product.mainImage && product.mainImage.startsWith('blob:')) {
+          URL.revokeObjectURL(product.mainImage);
+        }
+        
+        setProduct({
+          name: '',
+          price: '',
+          showPrice: true,
+          category: '',
+          description: '',
+          descriptionAlignment: 'left',
+          specifications: [''],
+          specificationAlignments: ['left'],
+          highlights: [''],
+          highlightAlignments: ['left'],
+          downloads: [],
+          images: [],
+          imageFiles: [],
+          mainImage: '',
+        });
+        setIsNewCategory(false);
+        setNewCategoryInput('');
+        setErrors({});
+        navigate('/admin/products');
+      } else {
+        setServerError(result.error || 'Failed to create product');
+      }
+    } catch (error) {
+      console.error('Full error details:', {
+        message: error.message,
+        stack: error.stack,
+      });
+      setServerError(error.message || 'Failed to create product. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const triggerFileInput = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
+
+  const AlignmentButtons = ({ field, index, currentAlignment }) => (
+    <div className="flex space-x-1 mt-1">
+      <button
+        type="button"
+        onClick={() => handleAlignmentChange(field, index, 'left')}
+        className={`p-1 rounded ${currentAlignment === 'left' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
+        title="Align left"
+      >
+        <FiAlignLeft size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleAlignmentChange(field, index, 'center')}
+        className={`p-1 rounded ${currentAlignment === 'center' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
+        title="Align center"
+      >
+        <FiAlignCenter size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleAlignmentChange(field, index, 'right')}
+        className={`p-1 rounded ${currentAlignment === 'right' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
+        title="Align right"
+      >
+        <FiAlignRight size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleAlignmentChange(field, index, 'justify')}
+        className={`p-1 rounded ${currentAlignment === 'justify' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
+        title="Justify"
+      >
+        <FiAlignJustify size={14} />
+      </button>
+    </div>
+  );
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -606,18 +685,29 @@ const AddProducts = () => {
         )}
         {activeTab === 'description' && (
           <div className="mb-6">
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-              Product Description
-            </label>
+            <div className="flex justify-between items-center mb-2">
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                Product Description
+              </label>
+              <AlignmentButtons 
+                field="description" 
+                index={0} 
+                currentAlignment={product.descriptionAlignment} 
+              />
+            </div>
             <textarea
               id="description"
               name="description"
               rows={6}
               value={product.description}
               onChange={handleChange}
+              style={{ textAlign: product.descriptionAlignment }}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               placeholder="Enter detailed product description..."
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Current alignment: {product.descriptionAlignment}
+            </p>
           </div>
         )}
         {activeTab === 'specifications' && (
@@ -625,27 +715,37 @@ const AddProducts = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Specifications {errors.specifications && <span className="text-red-500 text-xs">({errors.specifications})</span>}
             </label>
-            <div className="space-y-2">
+            <div className="space-y-4">
               {product.specifications.map((spec, index) => (
-                <div key={index} className="flex items-center">
-                  <input
-                    type="text"
-                    value={spec}
-                    onChange={(e) => handleSpecChange(index, e.target.value)}
-                    className={`flex-1 block border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.specifications ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder={`Specification ${index + 1}`}
-                  />
-                  {product.specifications.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeSpecField(index)}
-                      className="ml-2 text-red-500 hover:text-red-700"
-                    >
-                      <FiTrash2 />
-                    </button>
-                  )}
+                <div key={index} className="border rounded-md p-3">
+                  <div className="flex items-center mb-2">
+                    <input
+                      type="text"
+                      value={spec}
+                      onChange={(e) => handleSpecChange(index, e.target.value)}
+                      className={`flex-1 block border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                        errors.specifications ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder={`Specification ${index + 1}`}
+                    />
+                    {product.specifications.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeSpecField(index)}
+                        className="ml-2 text-red-500 hover:text-red-700"
+                      >
+                        <FiTrash2 />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Text alignment:</span>
+                    <AlignmentButtons 
+                      field="specifications" 
+                      index={index} 
+                      currentAlignment={product.specificationAlignments[index] || 'left'} 
+                    />
+                  </div>
                 </div>
               ))}
               <button
@@ -665,27 +765,37 @@ const AddProducts = () => {
               Product Highlights/Bullet Points{' '}
               {errors.highlights && <span className="text-red-500 text-xs">({errors.highlights})</span>}
             </label>
-            <div className="space-y-2">
+            <div className="space-y-4">
               {product.highlights.map((highlight, index) => (
-                <div key={index} className="flex items-center">
-                  <input
-                    type="text"
-                    value={highlight}
-                    onChange={(e) => handleHighlightChange(index, e.target.value)}
-                    className={`flex-1 block border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.highlights ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder={`Highlight ${index + 1}`}
-                  />
-                  {product.highlights.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeHighlightField(index)}
-                      className="ml-2 text-red-500 hover:text-red-700"
-                    >
-                      <FiTrash2 />
-                    </button>
-                  )}
+                <div key={index} className="border rounded-md p-3">
+                  <div className="flex items-center mb-2">
+                    <input
+                      type="text"
+                      value={highlight}
+                      onChange={(e) => handleHighlightChange(index, e.target.value)}
+                      className={`flex-1 block border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                        errors.highlights ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder={`Highlight ${index + 1}`}
+                    />
+                    {product.highlights.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeHighlightField(index)}
+                        className="ml-2 text-red-500 hover:text-red-700"
+                      >
+                        <FiTrash2 />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Text alignment:</span>
+                    <AlignmentButtons 
+                      field="highlights" 
+                      index={index} 
+                      currentAlignment={product.highlightAlignments[index] || 'left'} 
+                    />
+                  </div>
                 </div>
               ))}
               <button
