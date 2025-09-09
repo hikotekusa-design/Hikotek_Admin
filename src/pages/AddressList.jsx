@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiEdit, FiTrash2, FiPlus, FiMapPin, FiArrowLeft, FiLoader } from 'react-icons/fi';
+import { FiEdit, FiTrash2, FiPlus, FiMapPin, FiArrowLeft, FiLoader, FiHome, FiBriefcase, FiHeadphones } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { addressApi } from '../services/AddressApi';
 import { toast } from 'react-toastify';
@@ -150,6 +150,11 @@ const AddressList = () => {
     resetForm();
   };
 
+  // Helper function to get office by title
+  const getOfficeByTitle = (title) => {
+    return addresses.find(office => office.title === title);
+  };
+
   if (loading) {
     return (
       <div className="p-6 ml-64 flex items-center justify-center min-h-screen">
@@ -177,16 +182,148 @@ const AddressList = () => {
           <h1 className="text-2xl font-bold text-gray-800 flex items-center">
             <FiMapPin className="mr-2" /> Address Management
           </h1>
-          <button
+          
+        </div>
+
+        {/* Special Office Addresses Section */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Office Addresses</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            {/* Head Office Card */}
+            <div className="bg-white rounded-lg shadow-md p-6 border border-blue-100">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-blue-700 flex items-center">
+                  <FiHome className="mr-2" /> Head Office
+                </h3>
+                {getOfficeByTitle('Head Office') && (
+                  <button
+                    onClick={() => handleEdit(getOfficeByTitle('Head Office'))}
+                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+                  >
+                    <FiEdit className="mr-1" /> Edit
+                  </button>
+                )}
+              </div>
+              {getOfficeByTitle('Head Office') ? (
+                <>
+                  <p className="text-gray-700 font-medium mb-2">{getOfficeByTitle('Head Office').name}</p>
+                  <p className="text-gray-600 text-sm mb-4">{getOfficeByTitle('Head Office').address}</p>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-gray-700">{getOfficeByTitle('Head Office').phone}</p>
+                    <p className="text-gray-700">{getOfficeByTitle('Head Office').email}</p>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <p className="mb-3">No Head Office address set</p>
+                  <button
+                    onClick={() => {
+                      setFormData(prev => ({...prev, title: 'Head Office'}));
+                      setIsModalOpen(true);
+                    }}
+                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center justify-center"
+                  >
+                    <FiPlus className="mr-1" /> Add Head Office
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Branch Office Card */}
+            <div className="bg-white rounded-lg shadow-md p-6 border border-green-100">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-green-700 flex items-center">
+                  <FiBriefcase className="mr-2" /> Branch Office
+                </h3>
+                {getOfficeByTitle('Branch Office') && (
+                  <button
+                    onClick={() => handleEdit(getOfficeByTitle('Branch Office'))}
+                    className="text-green-600 hover:text-green-800 text-sm flex items-center"
+                  >
+                    <FiEdit className="mr-1" /> Edit
+                  </button>
+                )}
+              </div>
+              {getOfficeByTitle('Branch Office') ? (
+                <>
+                  <p className="text-gray-700 font-medium mb-2">{getOfficeByTitle('Branch Office').name}</p>
+                  <p className="text-gray-600 text-sm mb-4">{getOfficeByTitle('Branch Office').address}</p>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-gray-700">{getOfficeByTitle('Branch Office').phone}</p>
+                    <p className="text-gray-700">{getOfficeByTitle('Branch Office').email}</p>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <p className="mb-3">No Branch Office address set</p>
+                  <button
+                    onClick={() => {
+                      setFormData(prev => ({...prev, title: 'Branch Office'}));
+                      setIsModalOpen(true);
+                    }}
+                    className="text-green-600 hover:text-green-800 text-sm flex items-center justify-center"
+                  >
+                    <FiPlus className="mr-1" /> Add Branch Office
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Support Office Card */}
+            <div className="bg-white rounded-lg shadow-md p-6 border border-purple-100">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-purple-700 flex items-center">
+                  <FiHeadphones className="mr-2" /> Support Office
+                </h3>
+                {getOfficeByTitle('Support Office') && (
+                  <button
+                    onClick={() => handleEdit(getOfficeByTitle('Support Office'))}
+                    className="text-purple-600 hover:text-purple-800 text-sm flex items-center"
+                  >
+                    <FiEdit className="mr-1" /> Edit
+                  </button>
+                )}
+              </div>
+              {getOfficeByTitle('Support Office') ? (
+                <>
+                  <p className="text-gray-700 font-medium mb-2">{getOfficeByTitle('Support Office').name}</p>
+                  <p className="text-gray-600 text-sm mb-4">{getOfficeByTitle('Support Office').address}</p>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-gray-700">{getOfficeByTitle('Support Office').phone}</p>
+                    <p className="text-gray-700">{getOfficeByTitle('Support Office').email}</p>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <p className="mb-3">No Support Office address set</p>
+                  <button
+                    onClick={() => {
+                      setFormData(prev => ({...prev, title: 'Support Office'}));
+                      setIsModalOpen(true);
+                    }}
+                    className="text-purple-600 hover:text-purple-800 text-sm flex items-center justify-center"
+                  >
+                    <FiPlus className="mr-1" /> Add Support Office
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* All Addresses List */}
+         
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          
+          <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center mb-6">
+            <h2 className="text-lg font-semibold text-gray-800">All Addresses</h2>
+            <button
             onClick={() => setIsModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
           >
             <FiPlus className="mr-2" /> Add New Address
           </button>
-        </div>
-
-        {/* Address List */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">

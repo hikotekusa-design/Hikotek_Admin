@@ -1,256 +1,357 @@
-import React, { useState } from 'react';
-import { FaSave, FaUndo, FaEye, FaEnvelope, FaMapMarkerAlt, FaFacebook, FaInstagram, FaTiktok, FaPinterest, FaYoutube } from 'react-icons/fa';
+import React, { useState, useEffect } from "react";
+import { FaEdit, FaTrash } from "react-icons/fa";
+import { FiArrowLeft } from "react-icons/fi";
+import { Link } from "react-router-dom";
+import { footerApi } from "../services/FooterApi";
 
 const FooterAdmin = () => {
-  const [activeTab, setActiveTab] = useState('company');
-  const [footerData, setFooterData] = useState({
-    companyInfo: {
-      description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla in nibh vehicula.',
-      address: '123 Fashion Street, New York, NY 10001',
-      email: 'hello@example.com'
-    },
-    socialMedia: {
-      facebook: '',
-      instagram: 'https://www.instagram.com/hikotek_llc/#',
-      twitter: 'https://x.com/hikotek',
-      tiktok: '',
-      pinterest: '',
-      youtube: ''
-    }
+  const [formData, setFormData] = useState({
+    description: "",
+    email: "",
+    address: "",
+    facebook: "",
+    instagram: "",
+    twitter: "",
+    youtube: "",
+    phone: ""
   });
 
-  const handleInputChange = (section, field, value) => {
-    setFooterData(prev => ({
+  const [footerDetails, setFooterDetails] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // Fetch footer details on component mount
+  useEffect(() => {
+    fetchFooterDetails();
+  }, []);
+
+  // Fetch all footer details
+  const fetchFooterDetails = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const response = await footerApi.getAll();
+      setFooterDetails(response.data || []);
+    } catch (err) {
+      setError(err.message || "Failed to fetch footer details");
+      console.error("Error fetching footer details:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Input Change
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
       ...prev,
-      [section]: {
-        ...prev[section],
-        [field]: value
-      }
+      [name]: value
     }));
   };
 
-  const handleSave = () => {
-    // Save logic would go here
-    console.log('Saving footer data:', footerData);
-    alert('Footer content saved successfully!');
+  // Handle Text Area Change
+  const handleTextAreaChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  const handleReset = () => {
-    // Reset logic would go here
-    alert('Changes have been reset');
+  // Add/Update Footer Details
+  const handleSubmit = async () => {
+    if (!formData.description || !formData.email || !formData.address) {
+      setError("Please fill all required fields (description, email, address)!");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+      setSuccess("");
+
+      if (formData.id) {
+        // Update existing footer
+        await footerApi.update(formData.id, formData);
+        setSuccess("Footer details updated successfully!");
+      } else {
+        // Create new footer
+        await footerApi.create(formData);
+        setSuccess("Footer details created successfully!");
+      }
+
+      // Refresh the list
+      await fetchFooterDetails();
+      
+      // Reset form
+      setFormData({
+        description: "",
+        email: "",
+        address: "",
+        facebook: "",
+        instagram: "",
+        twitter: "",
+        youtube: "",
+        phone: ""
+      });
+
+    } catch (err) {
+      setError(err.message || "Failed to save footer details");
+      console.error("Error saving footer details:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handlePreview = () => {
-    // Preview logic would go here
-    alert('Preview mode activated');
+  // Delete Footer Details
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this footer detail?")) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+      await footerApi.delete(id);
+      setSuccess("Footer detail deleted successfully!");
+      
+      // Refresh the list
+      await fetchFooterDetails();
+    } catch (err) {
+      setError(err.message || "Failed to delete footer detail");
+      console.error("Error deleting footer detail:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Edit Footer Details
+  const handleEdit = (footer) => {
+    setFormData(footer);
+    setError("");
+    setSuccess("");
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Clear form
+  const handleClear = () => {
+    setFormData({
+      description: "",
+      email: "",
+      address: "",
+      facebook: "",
+      instagram: "",
+      twitter: "",
+      youtube: "",
+      phone: ""
+    });
+    setError("");
+    setSuccess("");
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-white">
-          <h1 className="text-2xl font-bold">Footer Content Management</h1>
-          <p className="text-blue-100">Update company information and social media links displayed in the footer</p>
+    <div className="max-w-4xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-lg">
+      <div className="mb-4">
+        <Link
+          to="/admin/dashboard"
+          className="flex items-center text-blue-600 hover:text-blue-800"
+        >
+          <FiArrowLeft className="mr-1" /> Back to Dashboard
+        </Link>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">Manage Footer Details</h2>
+
+      {/* Success and Error Messages */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+          {success}
+        </div>
+      )}
+
+      {/* Form */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Description */}
+        <div className="sm:col-span-2">
+          <label className="block text-gray-700 font-medium mb-1">Company Description *</label>
+          <textarea
+            name="description"
+            value={formData.description}
+            onChange={handleTextAreaChange}
+            className="w-full p-3 border rounded-lg focus:ring focus:ring-blue-400 focus:outline-none"
+            placeholder="Enter company description"
+            rows="4"
+          />
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200">
-          <button
-            className={`px-6 py-3 font-medium text-sm ${activeTab === 'company' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-            onClick={() => setActiveTab('company')}
-          >
-            Company Information
-          </button>
-          <button
-            className={`px-6 py-3 font-medium text-sm ${activeTab === 'social' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-            onClick={() => setActiveTab('social')}
-          >
-            Social Media
-          </button>
+        {/* Email */}
+        <div>
+          <label className="block text-gray-700 font-medium mb-1">Email *</label>
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            className="w-full p-3 border rounded-lg focus:ring focus:ring-blue-400 focus:outline-none"
+            placeholder="Enter email address"
+          />
         </div>
 
-        <div className="p-6">
-          {/* Company Information Tab */}
-          {activeTab === 'company' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-800 mb-2">Company Details</h2>
-                <p className="text-gray-600 text-sm">This information appears in the footer section of your website</p>
-              </div>
+        {/* Phone */}
+        <div>
+          <label className="block text-gray-700 font-medium mb-1">Phone</label>
+          <input
+            type="text"
+            name="phone"
+            value={formData.phone}
+            onChange={handleChange}
+            className="w-full p-3 border rounded-lg focus:ring focus:ring-blue-400 focus:outline-none"
+            placeholder="Enter phone number"
+          />
+        </div>
 
-              <div className="grid gap-6 md:grid-cols-1">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Company Description</label>
-                  <textarea
-                    value={footerData.companyInfo.description}
-                    onChange={(e) => handleInputChange('companyInfo', 'description', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                    rows="4"
-                    placeholder="Enter company description"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Brief description about your company (max 200 characters)</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                  <div className="flex items-center">
-                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500">
-                      <FaMapMarkerAlt />
-                    </span>
-                    <input
-                      type="text"
-                      value={footerData.companyInfo.address}
-                      onChange={(e) => handleInputChange('companyInfo', 'address', e.target.value)}
-                      className="flex-1 block w-full rounded-none rounded-r-md px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                      placeholder="Enter company address"
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-                  <div className="flex items-center">
-                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500">
-                      <FaEnvelope />
-                    </span>
-                    <input
-                      type="email"
-                      value={footerData.companyInfo.email}
-                      onChange={(e) => handleInputChange('companyInfo', 'email', e.target.value)}
-                      className="flex-1 block w-full rounded-none rounded-r-md px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                      placeholder="Enter email address"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+        {/* Address */}
+        <div className="sm:col-span-2">
+          <label className="block text-gray-700 font-medium mb-1">Address *</label>
+          <textarea
+            name="address"
+            value={formData.address}
+            onChange={handleTextAreaChange}
+            className="w-full p-3 border rounded-lg focus:ring focus:ring-blue-400 focus:outline-none"
+            placeholder="Enter company address"
+            rows="3"
+          />
+        </div>
 
-          {/* Social Media Tab */}
-          {activeTab === 'social' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-800 mb-2">Social Media Links</h2>
-                <p className="text-gray-600 text-sm">Add your social media profiles to display in the footer</p>
-              </div>
+        {/* Social Media Links */}
+        <div className="sm:col-span-2">
+          <h3 className="text-lg font-semibold mb-3">Social Media Links</h3>
+        </div>
 
-              <div className="grid gap-5 md:grid-cols-2">
-                <div className="border rounded-lg p-4 bg-gray-50">
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                    <FaFacebook className="text-blue-600 mr-2" />
-                    Facebook URL
-                  </label>
-                  <input
-                    type="url"
-                    value={footerData.socialMedia.facebook}
-                    onChange={(e) => handleInputChange('socialMedia', 'facebook', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                    placeholder="https://facebook.com/yourpage"
-                  />
-                </div>
-                
-                <div className="border rounded-lg p-4 bg-gray-50">
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                    <FaInstagram className="text-pink-600 mr-2" />
-                    Instagram URL
-                  </label>
-                  <input
-                    type="url"
-                    value={footerData.socialMedia.instagram}
-                    onChange={(e) => handleInputChange('socialMedia', 'instagram', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                    placeholder="https://instagram.com/yourprofile"
-                  />
-                </div>
-                
-                <div className="border rounded-lg p-4 bg-gray-50">
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                    <FaXTwitter className="text-black mr-2" />
-                    Twitter URL
-                  </label>
-                  <input
-                    type="url"
-                    value={footerData.socialMedia.twitter}
-                    onChange={(e) => handleInputChange('socialMedia', 'twitter', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                    placeholder="https://twitter.com/yourprofile"
-                  />
-                </div>
-                
-                <div className="border rounded-lg p-4 bg-gray-50">
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                    <FaTiktok className="text-black mr-2" />
-                    TikTok URL
-                  </label>
-                  <input
-                    type="url"
-                    value={footerData.socialMedia.tiktok}
-                    onChange={(e) => handleInputChange('socialMedia', 'tiktok', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                    placeholder="https://tiktok.com/@yourprofile"
-                  />
-                </div>
-                
-                <div className="border rounded-lg p-4 bg-gray-50">
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                    <FaPinterest className="text-red-600 mr-2" />
-                    Pinterest URL
-                  </label>
-                  <input
-                    type="url"
-                    value={footerData.socialMedia.pinterest}
-                    onChange={(e) => handleInputChange('socialMedia', 'pinterest', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                    placeholder="https://pinterest.com/yourprofile"
-                  />
-                </div>
-                
-                <div className="border rounded-lg p-4 bg-gray-50">
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                    <FaYoutube className="text-red-600 mr-2" />
-                    YouTube URL
-                  </label>
-                  <input
-                    type="url"
-                    value={footerData.socialMedia.youtube}
-                    onChange={(e) => handleInputChange('socialMedia', 'youtube', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                    placeholder="https://youtube.com/yourchannel"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+        <div>
+          <label className="block text-gray-700 font-medium mb-1">Facebook</label>
+          <input
+            type="url"
+            name="facebook"
+            value={formData.facebook}
+            onChange={handleChange}
+            className="w-full p-3 border rounded-lg focus:ring focus:ring-blue-400 focus:outline-none"
+            placeholder="https://facebook.com/username"
+          />
+        </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
-            <div className="flex gap-3">
-              <button
-                onClick={handlePreview}
-                className="flex items-center px-5 py-2.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+        <div>
+          <label className="block text-gray-700 font-medium mb-1">Instagram</label>
+          <input
+            type="url"
+            name="instagram"
+            value={formData.instagram}
+            onChange={handleChange}
+            className="w-full p-3 border rounded-lg focus:ring focus:ring-blue-400 focus:outline-none"
+            placeholder="https://instagram.com/username"
+          />
+        </div>
+
+        <div>
+          <label className="block text-gray-700 font-medium mb-1">Twitter</label>
+          <input
+            type="url"
+            name="twitter"
+            value={formData.twitter}
+            onChange={handleChange}
+            className="w-full p-3 border rounded-lg focus:ring focus:ring-blue-400 focus:outline-none"
+            placeholder="https://twitter.com/username"
+          />
+        </div>
+
+        <div>
+          <label className="block text-gray-700 font-medium mb-1">YouTube</label>
+          <input
+            type="url"
+            name="youtube"
+            value={formData.youtube}
+            onChange={handleChange}
+            className="w-full p-3 border rounded-lg focus:ring focus:ring-blue-400 focus:outline-none"
+            placeholder="https://youtube.com/channel"
+          />
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="mt-6 flex gap-3">
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-3 rounded-lg transition duration-300"
+        >
+          {loading ? "Processing..." : (formData.id ? "Update Details" : "Add Details")}
+        </button>
+
+        {formData.id && (
+          <button
+            onClick={handleClear}
+            disabled={loading}
+            className="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg transition duration-300"
+          >
+            Cancel Edit
+          </button>
+        )}
+      </div>
+
+      {/* Footer Details List */}
+      <div className="mt-8">
+        <h3 className="text-lg font-semibold mb-3">Saved Footer Details</h3>
+        
+        {loading && <p className="text-gray-500">Loading footer details...</p>}
+        
+        {!loading && footerDetails.length === 0 ? (
+          <p className="text-gray-500">No footer details added yet.</p>
+        ) : (
+          <div className="space-y-4">
+            {footerDetails.map((detail) => (
+              <div
+                key={detail.id}
+                className="bg-gray-100 p-4 rounded-lg flex justify-between items-center shadow"
               >
-                <FaEye className="mr-2" />
-                Preview
-              </button>
-              <button
-                onClick={handleReset}
-                className="flex items-center px-5 py-2.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
-              >
-                <FaUndo className="mr-2" />
-                Reset
-              </button>
-            </div>
-            
-            <button
-              onClick={handleSave}
-              className="flex items-center px-6 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
-            >
-              <FaSave className="mr-2" />
-              Save Changes
-            </button>
+                <div className="flex-1">
+                  <p className="font-semibold">{detail.email}</p>
+                  <p className="text-sm text-gray-600 mb-2">{detail.address}</p>
+                  <p className="text-xs text-gray-500">
+                    Social links: {[
+                      detail.facebook && 'Facebook',
+                      detail.instagram && 'Instagram',
+                      detail.twitter && 'Twitter',
+                      detail.youtube && 'YouTube'
+                    ].filter(Boolean).join(', ') || 'None'}
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleEdit(detail)}
+                    disabled={loading}
+                    className="bg-yellow-400 hover:bg-yellow-500 disabled:bg-yellow-300 text-white px-3 py-2 rounded-lg"
+                  >
+                    <FaEdit />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(detail.id)}
+                    disabled={loading}
+                    className="bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white px-3 py-2 rounded-lg"
+                  >
+                    <FaTrash />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -97,7 +97,7 @@ const AdminSidebar = () => {
             }`
           }
         >
-          <FiMapPin className="mr-3" />
+          <FiSettings className="mr-3" />
           Footer
         </NavLink>
       </nav>
