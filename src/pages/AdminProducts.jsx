@@ -1,3 +1,4 @@
+// AdminProducts.jsx
 import React, { useState, useEffect } from 'react';
 import { FiEdit, FiEye, FiTrash2, FiPlus, FiSearch, FiArrowLeft } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
@@ -61,6 +62,35 @@ const AdminProducts = () => {
       setIsLoading(false);
     }
   };
+
+  
+const handleToggleFeatured = async (id, newValue) => {
+  setIsLoading(true);
+  setError('');
+  try {
+    const formData = new FormData();
+    formData.append('isFeatured', newValue.toString());
+    
+    const response = await productApi.update(id, formData);
+    if (response.success) {
+      // Update the local state immediately
+      setProducts(products.map((p) =>
+        p.id === id ? { ...p, isFeatured: newValue } : p
+      ));
+    } else {
+      throw new Error(response.error || 'Failed to update featured status');
+    }
+  } catch (err) {
+    console.error('Error toggling featured:', err);
+    setError(err.message || 'Failed to update featured status. Please try again.');
+    // Revert the toggle on error
+    setProducts(products.map((p) =>
+      p.id === id ? { ...p, isFeatured: !newValue } : p
+    ));
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // Filter products based on search
   const filteredProducts = products.filter((product) =>
@@ -129,8 +159,12 @@ const AdminProducts = () => {
                 >
                   Price
                 </th>
-
-
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Featured
+                </th>
                 <th
                   scope="col"
                   className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -189,10 +223,20 @@ const AdminProducts = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {product.showPrice ? `${product.price} SAR` : 'Hidden'}
+                      {product.showPrice ? `${product.price} USD` : 'Hidden'}
                     </td>
-                    
-                    
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={product.isFeatured || false}
+                          onChange={(e) => handleToggleFeatured(product.id, e.target.checked)}
+                          disabled={isLoading}
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5 peer-checked:after:border-white peer-checked:bg-blue-600"></div>
+                      </label>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-3">
                         <Link

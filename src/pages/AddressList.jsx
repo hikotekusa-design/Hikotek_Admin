@@ -91,7 +91,7 @@ const AddressList = () => {
       title: address.title,
       name: address.name,
       address: address.address,
-      phone: address.phone,
+      phone: address.phone || '',
       email: address.email,
       status: address.status || 'active'
     });
@@ -209,7 +209,9 @@ const AddressList = () => {
                   <p className="text-gray-700 font-medium mb-2">{getOfficeByTitle('Head Office').name}</p>
                   <p className="text-gray-600 text-sm mb-4">{getOfficeByTitle('Head Office').address}</p>
                   <div className="space-y-1 text-sm">
-                    <p className="text-gray-700">{getOfficeByTitle('Head Office').phone}</p>
+                    {getOfficeByTitle('Head Office').phone && (
+                      <p className="text-gray-700">{getOfficeByTitle('Head Office').phone}</p>
+                    )}
                     <p className="text-gray-700">{getOfficeByTitle('Head Office').email}</p>
                   </div>
                 </>
@@ -249,7 +251,9 @@ const AddressList = () => {
                   <p className="text-gray-700 font-medium mb-2">{getOfficeByTitle('Branch Office').name}</p>
                   <p className="text-gray-600 text-sm mb-4">{getOfficeByTitle('Branch Office').address}</p>
                   <div className="space-y-1 text-sm">
-                    <p className="text-gray-700">{getOfficeByTitle('Branch Office').phone}</p>
+                    {getOfficeByTitle('Branch Office').phone && (
+                      <p className="text-gray-700">{getOfficeByTitle('Branch Office').phone}</p>
+                    )}
                     <p className="text-gray-700">{getOfficeByTitle('Branch Office').email}</p>
                   </div>
                 </>
@@ -289,7 +293,9 @@ const AddressList = () => {
                   <p className="text-gray-700 font-medium mb-2">{getOfficeByTitle('Support Office').name}</p>
                   <p className="text-gray-600 text-sm mb-4">{getOfficeByTitle('Support Office').address}</p>
                   <div className="space-y-1 text-sm">
-                    <p className="text-gray-700">{getOfficeByTitle('Support Office').phone}</p>
+                    {getOfficeByTitle('Support Office').phone && (
+                      <p className="text-gray-700">{getOfficeByTitle('Support Office').phone}</p>
+                    )}
                     <p className="text-gray-700">{getOfficeByTitle('Support Office').email}</p>
                   </div>
                 </>
@@ -361,7 +367,7 @@ const AddressList = () => {
                       <div className="text-sm text-gray-900">{address.address}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{address.phone}</div>
+                      <div className="text-sm text-gray-900">{address.phone || 'Not provided'}</div>
                       <div className="text-sm text-gray-500">{address.email}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -416,9 +422,11 @@ const AddressList = () => {
                 <p className="font-medium text-gray-800 mb-2">{address.name}</p>
                 <p className="text-gray-600 mb-4">{address.address}</p>
                 <div className="border-t border-gray-100 pt-3">
-                  <p className="text-gray-700">
-                    <span className="font-medium">Phone:</span> {address.phone}
-                  </p>
+                  {address.phone && (
+                    <p className="text-gray-700">
+                      <span className="font-medium">Phone:</span> {address.phone}
+                    </p>
+                  )}
                   <p className="text-gray-700">
                     <span className="font-medium">Email:</span> {address.email}
                   </p>
@@ -484,7 +492,7 @@ const AddressList = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone *
+                    Phone
                   </label>
                   <input
                     type="text"
@@ -492,8 +500,8 @@ const AddressList = () => {
                     value={formData.phone}
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
                     disabled={submitting}
+                    placeholder="Optional"
                   />
                 </div>
                 <div>
