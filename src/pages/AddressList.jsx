@@ -43,6 +43,80 @@ const AddressList = () => {
     fetchAddresses();
   }, []);
 
+  // Helper function to get office by title
+  const getOfficeByTitle = (title) => {
+    return addresses.find(office => office.title === title);
+  };
+
+  // Function to identify special office addresses
+  const getSpecialOfficeTitles = () => {
+    // You can customize this logic to identify which addresses should be treated as special offices
+    // For example, you might have specific titles or a flag in your database
+    const specialTitles = [];
+    
+    addresses.forEach(address => {
+      // Example logic - customize based on your needs
+      if (address.title.toLowerCase().includes('office') || 
+          address.title.toLowerCase().includes('head') ||
+          address.title.toLowerCase().includes('branch') ||
+          address.title.toLowerCase().includes('support') ||
+          address.title.toLowerCase().includes('main')) {
+        specialTitles.push(address.title);
+      }
+    });
+    
+    // Remove duplicates and return
+    return [...new Set(specialTitles)];
+  };
+
+  // Function to get icon based on office title
+  const getOfficeIcon = (title) => {
+    const lowerTitle = title.toLowerCase();
+    
+    if (lowerTitle.includes('head') || lowerTitle.includes('main')) {
+      return <FiHome className="mr-2" />;
+    } else if (lowerTitle.includes('branch')) {
+      return <FiBriefcase className="mr-2" />;
+    } else if (lowerTitle.includes('support')) {
+      return <FiHeadphones className="mr-2" />;
+    }
+    
+    // Default icon
+    return <FiMapPin className="mr-2" />;
+  };
+
+  // Function to get color classes based on office title
+  const getOfficeColorClasses = (title) => {
+    const lowerTitle = title.toLowerCase();
+    
+    if (lowerTitle.includes('head') || lowerTitle.includes('main')) {
+      return {
+        border: 'border-blue-100',
+        text: 'text-blue-700',
+        button: 'text-blue-600 hover:text-blue-800'
+      };
+    } else if (lowerTitle.includes('branch')) {
+      return {
+        border: 'border-green-100',
+        text: 'text-green-700',
+        button: 'text-green-600 hover:text-green-800'
+      };
+    } else if (lowerTitle.includes('support')) {
+      return {
+        border: 'border-purple-100',
+        text: 'text-purple-700',
+        button: 'text-purple-600 hover:text-purple-800'
+      };
+    }
+    
+    // Default colors
+    return {
+      border: 'border-gray-100',
+      text: 'text-gray-700',
+      button: 'text-gray-600 hover:text-gray-800'
+    };
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -150,11 +224,6 @@ const AddressList = () => {
     resetForm();
   };
 
-  // Helper function to get office by title
-  const getOfficeByTitle = (title) => {
-    return addresses.find(office => office.title === title);
-  };
-
   if (loading) {
     return (
       <div className="p-6 ml-64 flex items-center justify-center min-h-screen">
@@ -165,6 +234,9 @@ const AddressList = () => {
       </div>
     );
   }
+
+  // Get special office titles
+  const specialOfficeTitles = getSpecialOfficeTitles();
 
   return (
     <div className="p-6 ml-64">
@@ -182,153 +254,74 @@ const AddressList = () => {
           <h1 className="text-2xl font-bold text-gray-800 flex items-center">
             <FiMapPin className="mr-2" /> Address Management
           </h1>
-          
-        </div>
-
-        {/* Special Office Addresses Section */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Office Addresses</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            {/* Head Office Card */}
-            <div className="bg-white rounded-lg shadow-md p-6 border border-blue-100">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-blue-700 flex items-center">
-                  <FiHome className="mr-2" /> Head Office
-                </h3>
-                {getOfficeByTitle('Head Office') && (
-                  <button
-                    onClick={() => handleEdit(getOfficeByTitle('Head Office'))}
-                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
-                  >
-                    <FiEdit className="mr-1" /> Edit
-                  </button>
-                )}
-              </div>
-              {getOfficeByTitle('Head Office') ? (
-                <>
-                  <p className="text-gray-700 font-medium mb-2">{getOfficeByTitle('Head Office').name}</p>
-                  <p className="text-gray-600 text-sm mb-4">{getOfficeByTitle('Head Office').address}</p>
-                  <div className="space-y-1 text-sm">
-                    {getOfficeByTitle('Head Office').phone && (
-                      <p className="text-gray-700">{getOfficeByTitle('Head Office').phone}</p>
-                    )}
-                    <p className="text-gray-700">{getOfficeByTitle('Head Office').email}</p>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-4 text-gray-500">
-                  <p className="mb-3">No Head Office address set</p>
-                  <button
-                    onClick={() => {
-                      setFormData(prev => ({...prev, title: 'Head Office'}));
-                      setIsModalOpen(true);
-                    }}
-                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center justify-center"
-                  >
-                    <FiPlus className="mr-1" /> Add Head Office
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Branch Office Card */}
-            <div className="bg-white rounded-lg shadow-md p-6 border border-green-100">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-green-700 flex items-center">
-                  <FiBriefcase className="mr-2" /> Branch Office
-                </h3>
-                {getOfficeByTitle('Branch Office') && (
-                  <button
-                    onClick={() => handleEdit(getOfficeByTitle('Branch Office'))}
-                    className="text-green-600 hover:text-green-800 text-sm flex items-center"
-                  >
-                    <FiEdit className="mr-1" /> Edit
-                  </button>
-                )}
-              </div>
-              {getOfficeByTitle('Branch Office') ? (
-                <>
-                  <p className="text-gray-700 font-medium mb-2">{getOfficeByTitle('Branch Office').name}</p>
-                  <p className="text-gray-600 text-sm mb-4">{getOfficeByTitle('Branch Office').address}</p>
-                  <div className="space-y-1 text-sm">
-                    {getOfficeByTitle('Branch Office').phone && (
-                      <p className="text-gray-700">{getOfficeByTitle('Branch Office').phone}</p>
-                    )}
-                    <p className="text-gray-700">{getOfficeByTitle('Branch Office').email}</p>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-4 text-gray-500">
-                  <p className="mb-3">No Branch Office address set</p>
-                  <button
-                    onClick={() => {
-                      setFormData(prev => ({...prev, title: 'Branch Office'}));
-                      setIsModalOpen(true);
-                    }}
-                    className="text-green-600 hover:text-green-800 text-sm flex items-center justify-center"
-                  >
-                    <FiPlus className="mr-1" /> Add Branch Office
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Support Office Card */}
-            <div className="bg-white rounded-lg shadow-md p-6 border border-purple-100">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-purple-700 flex items-center">
-                  <FiHeadphones className="mr-2" /> Support Office
-                </h3>
-                {getOfficeByTitle('Support Office') && (
-                  <button
-                    onClick={() => handleEdit(getOfficeByTitle('Support Office'))}
-                    className="text-purple-600 hover:text-purple-800 text-sm flex items-center"
-                  >
-                    <FiEdit className="mr-1" /> Edit
-                  </button>
-                )}
-              </div>
-              {getOfficeByTitle('Support Office') ? (
-                <>
-                  <p className="text-gray-700 font-medium mb-2">{getOfficeByTitle('Support Office').name}</p>
-                  <p className="text-gray-600 text-sm mb-4">{getOfficeByTitle('Support Office').address}</p>
-                  <div className="space-y-1 text-sm">
-                    {getOfficeByTitle('Support Office').phone && (
-                      <p className="text-gray-700">{getOfficeByTitle('Support Office').phone}</p>
-                    )}
-                    <p className="text-gray-700">{getOfficeByTitle('Support Office').email}</p>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-4 text-gray-500">
-                  <p className="mb-3">No Support Office address set</p>
-                  <button
-                    onClick={() => {
-                      setFormData(prev => ({...prev, title: 'Support Office'}));
-                      setIsModalOpen(true);
-                    }}
-                    className="text-purple-600 hover:text-purple-800 text-sm flex items-center justify-center"
-                  >
-                    <FiPlus className="mr-1" /> Add Support Office
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* All Addresses List */}
-         
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          
-          <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold text-gray-800">All Addresses</h2>
-            <button
+          <button
             onClick={() => setIsModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
           >
             <FiPlus className="mr-2" /> Add New Address
           </button>
+        </div>
+
+        {/* Special Office Addresses Section */}
+        {specialOfficeTitles.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Office Addresses</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              {specialOfficeTitles.map((title) => {
+                const address = getOfficeByTitle(title);
+                const colors = getOfficeColorClasses(title);
+                
+                return (
+                  <div key={title} className={`bg-white rounded-lg shadow-md p-6 border ${colors.border}`}>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold flex items-center" style={{ color: colors.text }}>
+                        {getOfficeIcon(title)} {title}
+                      </h3>
+                      {address && (
+                        <button
+                          onClick={() => handleEdit(address)}
+                          className={`text-sm flex items-center ${colors.button}`}
+                        >
+                          <FiEdit className="mr-1" /> Edit
+                        </button>
+                      )}
+                    </div>
+                    {address ? (
+                      <>
+                        <p className="text-gray-700 font-medium mb-2">{address.name}</p>
+                        <p className="text-gray-600 text-sm mb-4">{address.address}</p>
+                        <div className="space-y-1 text-sm">
+                          {address.phone && (
+                            <p className="text-gray-700">{address.phone}</p>
+                          )}
+                          <p className="text-gray-700">{address.email}</p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-4 text-gray-500">
+                        <p className="mb-3">No {title} address set</p>
+                        <button
+                          onClick={() => {
+                            setFormData(prev => ({...prev, title}));
+                            setIsModalOpen(true);
+                          }}
+                          className={`text-sm flex items-center justify-center ${colors.button}`}
+                        >
+                          <FiPlus className="mr-1" /> Add {title}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* All Addresses List */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="border-b border-gray-200 px-6 py-4">
+            <h2 className="text-lg font-semibold text-gray-800">All Addresses</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -371,18 +364,20 @@ const AddressList = () => {
                       <div className="text-sm text-gray-500">{address.email}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <select
-                        value={address.status}
-                        onChange={(e) => handleStatusChange(address.id, e.target.value)}
+                      <div
+                        // value={address.status}
+                        // onChange={(e) => handleStatusChange(address.id, e.target.value)}
                         className={`px-2 py-1 text-xs rounded-full border ${
                           address.status === 'active' 
-                            ? 'bg-green-100 text-green-800 border-green-200' 
-                            : 'bg-gray-100 text-gray-800 border-gray-200'
+                            && 'bg-green-100 text-green-800 border-green-200' 
+                            // : 'bg-gray-100 text-gray-800 border-gray-200'
                         }`}
                       >
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
+                        {address.status}
+
+                        {/* <option value="active">Active</option>
+                        <option value="inactive">Inactive</option> */}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button

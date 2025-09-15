@@ -9,6 +9,7 @@ import ViewProduct from './pages/ViewProduct';
 import EditProducts from './pages/EditProducts';
 import AddressList from './pages/AddressList';
 import FooterAdmin from './pages/FooterAdmin';
+import AdminHome from './pages/AdminHome';
 
 function App() {
   return (
@@ -39,6 +40,8 @@ function App() {
       <Route path="/admin/products/edit/:id" element={<EditProducts/>}/>
       <Route path="/admin/address" element={<AddressList/>}/>
       <Route path="/admin/footer" element={<FooterAdmin/>}/>
+      <Route path="/admin/home" element={<AdminHome/>}/>
+
 
 
 

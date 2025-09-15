@@ -100,6 +100,17 @@ const AdminSidebar = () => {
           <FiSettings className="mr-3" />
           Footer
         </NavLink>
+        <NavLink 
+          to="/admin/home" 
+          className={({isActive}) => 
+            `flex items-center px-4 py-3 rounded-lg transition-all ${
+              isActive ? 'bg-blue-700 text-white' : 'hover:bg-blue-600'
+            }`
+          }
+        >
+          <FiSettings className="mr-3" />
+          Home
+        </NavLink>
       </nav>
 
       {/* Footer/Logout */}
