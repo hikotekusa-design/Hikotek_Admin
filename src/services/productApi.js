@@ -196,4 +196,54 @@ export const productApi = {
       throw error;
     }
   },
+
+deleteSubcategory: async (subcategory) => {
+  try {
+    const token = localStorage.getItem('adminToken');
+    if (!token) throw new Error('Authentication token not found');
+
+    const response = await fetch(`${BASE_URL}/admin/products/subcategory/${encodeURIComponent(subcategory)}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to delete subcategory');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('API Delete Subcategory Error:', error);
+    throw error;
+  }
+},
+
+deleteCategory: async (category) => {
+  try {
+    const token = localStorage.getItem('adminToken');
+    if (!token) throw new Error('Authentication token not found');
+
+    const response = await fetch(`${BASE_URL}/admin/products/category/${encodeURIComponent(category)}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to delete category');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('API Delete Category Error:', error);
+    throw error;
+  }
+},
 };

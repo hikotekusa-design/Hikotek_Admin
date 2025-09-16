@@ -86,7 +86,7 @@ const AdminSidebar = () => {
           }
         >
           <FiMapPin className="mr-3" />
-          Address
+          Contact
         </NavLink>
 
         <NavLink 
@@ -111,9 +111,20 @@ const AdminSidebar = () => {
           <FiSettings className="mr-3" />
           Home
         </NavLink>
+        <NavLink 
+          to="/admin/about" 
+          className={({isActive}) => 
+            `flex items-center px-4 py-3 rounded-lg transition-all ${
+              isActive ? 'bg-blue-700 text-white' : 'hover:bg-blue-600'
+            }`
+          }
+        >
+          <FiSettings className="mr-3" />
+          About
+        </NavLink>
       </nav>
 
-      {/* Footer/Logout */}
+      
       <div className="p-4 border-t border-blue-700">
         <button 
           onClick={handleLogout}

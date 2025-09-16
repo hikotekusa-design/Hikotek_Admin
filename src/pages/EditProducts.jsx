@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiUpload, FiTrash2, FiPlus, FiX, FiArrowLeft, FiEye, FiEyeOff, FiAlignLeft, FiAlignCenter, FiAlignRight, FiAlignJustify } from 'react-icons/fi';
+import { FiUpload, FiTrash2, FiPlus, FiX, FiArrowLeft, FiEye, FiEyeOff, FiAlignLeft, FiAlignCenter, FiAlignRight, FiAlignJustify, FiEdit } from 'react-icons/fi';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { productApi } from '../services/productApi';
 
@@ -10,6 +10,7 @@ const EditProduct = () => {
     price: '',
     showPrice: true,
     category: '',
+    subcategory: '',
     description: '',
     descriptionAlignment: 'left',
     specifications: [''],
@@ -22,8 +23,13 @@ const EditProduct = () => {
     mainImage: '',
   });
   const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
   const [isNewCategory, setIsNewCategory] = useState(false);
+  const [isNewSubcategory, setIsNewSubcategory] = useState(false);
   const [newCategoryInput, setNewCategoryInput] = useState('');
+  const [newSubcategoryInput, setNewSubcategoryInput] = useState('');
+  const [editCategory, setEditCategory] = useState(null);
+  const [editSubcategory, setEditSubcategory] = useState(null);
   const [activeTab, setActiveTab] = useState('basic');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
@@ -36,12 +42,13 @@ const EditProduct = () => {
       try {
         const result = await productApi.getById(id);
         if (result.success && result.data) {
-          console.log('Fetched product:', result.data); // Debugging
+          console.log('Fetched product:', result.data);
           setProduct({
             name: result.data.name || '',
             price: result.data.price || '',
             showPrice: result.data.showPrice !== undefined ? result.data.showPrice : true,
             category: result.data.category || '',
+            subcategory: result.data.subcategory || '',
             description: result.data.description || '',
             descriptionAlignment: result.data.descriptionAlignment || 'left',
             specifications: result.data.specifications?.map(spec => spec.text) || [''],
@@ -50,7 +57,7 @@ const EditProduct = () => {
             highlightAlignments: result.data.highlights?.map(hl => hl.alignment || 'left') || ['left'],
             downloads: result.data.downloads || [],
             images: result.data.images || [],
-            imageFiles: [], // New files to be uploaded
+            imageFiles: [],
             mainImage: result.data.mainImage || '',
           });
         } else {
@@ -66,7 +73,9 @@ const EditProduct = () => {
         const result = await productApi.getAll();
         if (result.success && result.data) {
           const uniqueCategories = [...new Set(result.data.map((p) => p.category?.trim()).filter(Boolean))].sort();
+          const uniqueSubcategories = [...new Set(result.data.map((p) => p.subcategory?.trim()).filter(Boolean))].sort();
           setCategories(uniqueCategories);
+          setSubcategories(uniqueSubcategories);
         }
       } catch (err) {
         setServerError('Error fetching categories: ' + err.message);
@@ -95,6 +104,7 @@ const EditProduct = () => {
     if (!product.name.trim()) newErrors.name = 'Product name is required';
     if (!product.price || parseFloat(product.price) <= 0) newErrors.price = 'Valid price is required';
     if (!product.category.trim() && !newCategoryInput.trim()) newErrors.category = 'Category is required';
+    // Subcategory is now optional - no validation required
     if (product.images.length === 0) newErrors.images = 'At least one image is required';
     if (product.specifications.some((spec) => !spec.trim())) {
       newErrors.specifications = 'All specifications must be filled';
@@ -131,13 +141,103 @@ const EditProduct = () => {
     setServerError('');
   };
 
+  const handleSubcategoryChange = (e) => {
+    const value = e.target.value;
+    if (value === 'new') {
+      setIsNewSubcategory(true);
+      setProduct((prev) => ({ ...prev, subcategory: '' }));
+    } else {
+      setIsNewSubcategory(false);
+      setNewSubcategoryInput('');
+      setProduct((prev) => ({ ...prev, subcategory: value }));
+    }
+    if (errors.subcategory) {
+      setErrors((prev) => ({ ...prev, subcategory: '' }));
+    }
+    setServerError('');
+  };
+
   const handleNewCategoryChange = (e) => {
-    setNewCategoryInput(e.target.value);
-    setProduct((prev) => ({ ...prev, category: e.target.value }));
+    const value = e.target.value;
+    setNewCategoryInput(value);
+    if (editCategory) {
+      setCategories(categories.map(cat => cat === editCategory ? value : cat));
+      setProduct((prev) => ({ ...prev, category: value }));
+      setEditCategory(null);
+    } else {
+      setProduct((prev) => ({ ...prev, category: value }));
+    }
     if (errors.category) {
       setErrors((prev) => ({ ...prev, category: '' }));
     }
     setServerError('');
+  };
+
+  const handleNewSubcategoryChange = (e) => {
+    const value = e.target.value;
+    setNewSubcategoryInput(value);
+    if (editSubcategory) {
+      setSubcategories(subcategories.map(sub => sub === editSubcategory ? value : sub));
+      setProduct((prev) => ({ ...prev, subcategory: value }));
+      setEditSubcategory(null);
+    } else {
+      setProduct((prev) => ({ ...prev, subcategory: value }));
+    }
+    if (errors.subcategory) {
+      setErrors((prev) => ({ ...prev, subcategory: '' }));
+    }
+    setServerError('');
+  };
+
+  const handleEditCategory = (category) => {
+    setIsNewCategory(true);
+    setNewCategoryInput(category);
+    setEditCategory(category);
+    setProduct((prev) => ({ ...prev, category }));
+  };
+
+  const handleEditSubcategory = (subcategory) => {
+    setIsNewSubcategory(true);
+    setNewSubcategoryInput(subcategory);
+    setEditSubcategory(subcategory);
+    setProduct((prev) => ({ ...prev, subcategory }));
+  };
+
+  const handleDeleteCategory = async (category) => {
+    if (!window.confirm(`Are you sure you want to delete category "${category}"?`)) return;
+    try {
+      const result = await productApi.deleteCategory(category);
+      if (result.success) {
+        setCategories(categories.filter(cat => cat !== category));
+        if (product.category === category) {
+          setProduct((prev) => ({ ...prev, category: categories[0] || '' }));
+        }
+        setServerError('');
+      } else {
+        setServerError(result.error || 'Failed to delete category');
+      }
+    } catch (err) {
+      setServerError('Error deleting category: ' + err.message);
+    }
+  };
+
+  const handleDeleteSubcategory = async (subcategory) => {
+    if (!window.confirm(`Are you sure you want to delete subcategory "${subcategory}"?`)) return;
+    try {
+      const result = await productApi.deleteSubcategory(subcategory);
+      if (result.success) {
+        setSubcategories(subcategories.filter(sub => sub !== subcategory));
+        if (product.subcategory === subcategory) {
+          setProduct((prev) => ({ ...prev, subcategory: '' }));
+        }
+        setServerError('');
+        alert(`Subcategory "${subcategory}" deleted successfully!`);
+      } else {
+        setServerError(result.error || 'Failed to delete subcategory');
+      }
+    } catch (err) {
+      setServerError('Error deleting subcategory: ' + err.message);
+    }
   };
 
   const handleSpecChange = (index, value) => {
@@ -161,7 +261,6 @@ const EditProduct = () => {
   };
 
   const handleAlignmentChange = (field, index, alignment) => {
-    console.log(`Setting ${field} alignment to: ${alignment}`); // Debugging
     if (field === 'description') {
       setProduct((prev) => ({ ...prev, descriptionAlignment: alignment }));
     } else if (field === 'specifications') {
@@ -345,6 +444,7 @@ const EditProduct = () => {
       formData.append('price', product.price);
       formData.append('showPrice', product.showPrice);
       formData.append('category', product.category.trim());
+      formData.append('subcategory', product.subcategory.trim()); // This will send empty string if no subcategory
       formData.append('description', product.description.trim() || '');
       formData.append('descriptionAlignment', product.descriptionAlignment);
       formData.append(
@@ -376,7 +476,6 @@ const EditProduct = () => {
         formData.append('downloads', file);
       });
 
-      console.log('Submitting form with descriptionAlignment:', product.descriptionAlignment); // Debugging
       const result = await productApi.update(id, formData);
       console.log('Update product response:', result);
 
@@ -606,6 +705,7 @@ const EditProduct = () => {
                         onClick={() => {
                           setIsNewCategory(false);
                           setNewCategoryInput('');
+                          setEditCategory(null);
                           setProduct((prev) => ({ ...prev, category: categories[0] || '' }));
                         }}
                         className="ml-2 text-blue-600 hover:text-blue-800"
@@ -614,27 +714,171 @@ const EditProduct = () => {
                       </button>
                     </div>
                   ) : (
-                    <select
-                      id="category"
-                      name="category"
-                      value={product.category}
-                      onChange={handleCategoryChange}
-                      className={`mt-1 block w-full border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                        errors.category ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      required
-                    >
-                      <option value="" disabled>
-                        Select a category
-                      </option>
-                      {categories.map((cat, idx) => (
-                        <option key={idx} value={cat}>
-                          {cat}
+                    <div className="flex items-center">
+                      <select
+                        id="category"
+                        name="category"
+                        value={product.category}
+                        onChange={handleCategoryChange}
+                        className={`mt-1 block w-full border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                          errors.category ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        required
+                      >
+                        <option value="" disabled>
+                          Select a category
                         </option>
-                      ))}
-                      <option value="new">Add New Category</option>
-                    </select>
+                        {categories.map((cat, idx) => (
+                          <option key={idx} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                        <option value="new">Add New Category</option>
+                      </select>
+                      {product.category && (
+                        <div className="ml-2 flex space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEditCategory(product.category)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Edit category"
+                          >
+                            <FiEdit size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCategory(product.category)}
+                            className="text-red-600 hover:text-red-800"
+                            title="Delete category"
+                          >
+                            <FiTrash2 size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
+                  <div className="mt-2">
+                    {categories.map((cat, idx) => (
+                      <div key={idx} className="flex items-center justify-between py-1">
+                        <span>{cat}</span>
+                        <div className="flex space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEditCategory(cat)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Edit category"
+                          >
+                            <FiEdit size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCategory(cat)}
+                            className="text-red-600 hover:text-red-800"
+                            title="Delete category"
+                          >
+                            <FiTrash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="subcategory" className="block text-sm font-medium text-gray-700">
+                    Subcategory (Optional) {errors.subcategory && <span className="text-red-500 text-xs">({errors.subcategory})</span>}
+                  </label>
+                  {isNewSubcategory ? (
+                    <div className="flex items-center">
+                      <input
+                        type="text"
+                        id="subcategory"
+                        name="subcategory"
+                        value={newSubcategoryInput}
+                        onChange={handleNewSubcategoryChange}
+                        className={`mt-1 block w-full border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                          errors.subcategory ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        placeholder="Enter new subcategory (optional)"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsNewSubcategory(false);
+                          setNewSubcategoryInput('');
+                          setEditSubcategory(null);
+                          setProduct((prev) => ({ ...prev, subcategory: '' }));
+                        }}
+                        className="ml-2 text-blue-600 hover:text-blue-800"
+                      >
+                        <FiX />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <select
+                        id="subcategory"
+                        name="subcategory"
+                        value={product.subcategory}
+                        onChange={handleSubcategoryChange}
+                        className={`mt-1 block w-full border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                          errors.subcategory ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                      >
+                        <option value="">No subcategory</option>
+                        {subcategories.map((sub, idx) => (
+                          <option key={idx} value={sub}>
+                            {sub}
+                          </option>
+                        ))}
+                        <option value="new">Add New Subcategory</option>
+                      </select>
+                      {product.subcategory && (
+                        <div className="ml-2 flex space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEditSubcategory(product.subcategory)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Edit subcategory"
+                          >
+                            <FiEdit size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSubcategory(product.subcategory)}
+                            className="text-red-600 hover:text-red-800"
+                            title="Delete subcategory"
+                          >
+                            <FiTrash2 size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="mt-2">
+                    {subcategories.map((sub, idx) => (
+                      <div key={idx} className="flex items-center justify-between py-1">
+                        <span>{sub}</span>
+                        <div className="flex space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEditSubcategory(sub)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Edit subcategory"
+                          >
+                            <FiEdit size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSubcategory(sub)}
+                            className="text-red-600 hover:text-red-800"
+                            title="Delete subcategory"
+                          >
+                            <FiTrash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label htmlFor="price" className="block text-sm font-medium text-gray-700">
