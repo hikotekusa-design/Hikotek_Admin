@@ -18,11 +18,61 @@ const handleResponse = async (response) => {
   }
 };
 
-export const loginAdmin = async (email, password) => {
+export const login = async (email, password) => {
   const response = await fetch(`${BASE_URL}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
   return handleResponse(response);
+};
+
+export const register = async (email, password, username) => {
+  const response = await fetch(`${BASE_URL}/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, username }),
+  });
+  return handleResponse(response);
+};
+
+export const getAdminProfile = async (token) => {
+  const response = await fetch(`${BASE_URL}/admin/profile`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+export const getAllAdmins = async (token) => {
+  const response = await fetch(`${BASE_URL}/admin/all`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+export const logout = async (token) => {
+  try {
+    const response = await fetch(`${BASE_URL}/logout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    await handleResponse(response);
+    localStorage.removeItem('adminToken');
+    return { success: true, message: 'Logged out successfully' };
+  } catch (error) {
+    console.error('Logout error:', error.message);
+    localStorage.removeItem('adminToken');
+    return { success: true, message: 'Logged out successfully' };
+  }
 };

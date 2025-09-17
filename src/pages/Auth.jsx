@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginAdmin } from '../services/authApi';
+import { login, register } from '../services/authApi';
 
 const Auth = () => {
+  const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    username: '',
     showPassword: false
   });
   const [error, setError] = useState('');
@@ -26,9 +28,15 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { token } = await loginAdmin(formData.email, formData.password);
-      localStorage.setItem('adminToken', token);
-      navigate('/admin/dashboard'); // Or wherever you want to redirect
+      if (isLogin) {
+        const { token } = await login(formData.email, formData.password);
+        localStorage.setItem('adminToken', token);
+        navigate('/admin/dashboard');
+      } else {
+        await register(formData.email, formData.password, formData.username);
+        setError('Admin registration successful! Please login.');
+        setIsLogin(true);
+      }
     } catch (err) {
       localStorage.removeItem('adminToken');
       setError(
@@ -36,7 +44,7 @@ const Auth = () => {
           ? 'Server is currently unavailable. Please try later.'
           : err.message.includes('JSON')
           ? 'Server response format error'
-          : err.message || 'Login failed'
+          : err.message || (isLogin ? 'Login failed' : 'Registration failed')
       );
     } finally {
       setLoading(false);
@@ -47,18 +55,43 @@ const Auth = () => {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-xl shadow-sm p-8">
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-gray-800">Admin Portal</h2>
-          <p className="text-gray-500 mt-1">Sign in to your account</p>
+          <h2 className="text-2xl font-bold text-gray-800">
+            {isLogin ? 'Admin Login' : 'Admin Registration'}
+          </h2>
+          <p className="text-gray-500 mt-1">
+            {isLogin ? 'Sign in to your admin account' : 'Create a new admin account'}
+          </p>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+          <div className={`mb-4 p-3 rounded-lg text-sm ${
+            error.includes('successful') 
+              ? 'bg-green-100 text-green-700' 
+              : 'bg-red-100 text-red-700'
+          }`}>
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Email Input */}
+          {!isLogin && (
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                Username
+              </label>
+              <input
+                type="text"
+                id="username"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                placeholder="Enter your username"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                required={!isLogin}
+              />
+            </div>
+          )}
+
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
               Email Address
@@ -75,7 +108,6 @@ const Auth = () => {
             />
           </div>
 
-          {/* Password Input */}
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
               Password
@@ -110,7 +142,6 @@ const Auth = () => {
             </div>
           </div>
 
-          {/* Submit Button */}
           <button
             type="submit"
             className="w-full py-3 px-4 bg-blue-600 rounded-lg font-medium text-white shadow-md hover:bg-blue-700 transition flex justify-center items-center"
@@ -124,9 +155,18 @@ const Auth = () => {
                 </svg>
                 Processing...
               </>
-            ) : 'Sign In'}
+            ) : isLogin ? 'Sign In' : 'Create Account'}
           </button>
         </form>
+
+        <div className="mt-6 text-center">
+          <button 
+            onClick={() => setIsLogin(!isLogin)}
+            className="text-blue-600 hover:text-blue-800 text-sm"
+          >
+            {isLogin ? "Need an account? Register" : "Already have an account? Login"}
+          </button>
+        </div>
       </div>
     </div>
   );

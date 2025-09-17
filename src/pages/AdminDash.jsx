@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { productApi } from '../services/productApi';
 import { enquiryApi } from '../services/EnquiryApi';
 import { DistributorApi } from '../services/DistributorApi';
+import { getAllAdmins } from '../services/authApi';
 import AdminSidebar from './AdminSidebar';
 
 const AdminDashboard = () => {
@@ -12,29 +13,37 @@ const AdminDashboard = () => {
     enquiries: 0,
     distributors: 0,
   });
+  const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchCounts = async () => {
+    const fetchData = async () => {
       try {
         const token = localStorage.getItem('adminToken');
         if (!token) {
           throw new Error('Authentication token not found');
         }
 
-        const [productResponse, enquiryResponse, distributorResponse] = await Promise.all([
+        const [productResponse, enquiryResponse, distributorResponse, adminsResponse] = await Promise.all([
           productApi.getCount().catch((err) => {
-            console.error('Product count fetch failed:', err);
-            return { data: { count: 0 } }; // Fallback to 0 on error
+            console.error('Product count fetch failed:', err.message);
+            return { data: { count: 0 } };
           }),
           enquiryApi.getCount().catch((err) => {
-            console.error('Enquiry count fetch failed:', err);
-            return { data: { count: 0 } }; // Fallback to 0 on error
+            console.error('Enquiry count fetch failed:', err.message);
+            return { data: { count: 0 } };
           }),
           DistributorApi.getCount(token).catch((err) => {
-            console.error('Distributor count fetch failed:', err);
-            return { data: { count: 0 } }; // Fallback to 0 on error
+            console.error('Distributor count fetch failed:', err.message);
+            return { data: { count: 0 } };
+          }),
+          getAllAdmins(token).catch((err) => {
+            console.error('Admins fetch failed:', err.message);
+            if (err.message.includes('Admin data not found') || err.message.includes('Failed to fetch all admins')) {
+              setError('Unable to load admin list. Please ensure admins are registered or contact support.');
+            }
+            return { admins: [] };
           }),
         ]);
 
@@ -43,8 +52,9 @@ const AdminDashboard = () => {
           enquiries: enquiryResponse.data.count || 0,
           distributors: distributorResponse.data.count || 0,
         });
+        setAdmins(adminsResponse.admins || []);
       } catch (err) {
-        console.error('Error fetching counts:', {
+        console.error('Error fetching data:', {
           message: err.message,
           stack: err.stack,
         });
@@ -58,36 +68,20 @@ const AdminDashboard = () => {
       }
     };
 
-    fetchCounts();
+    fetchData();
   }, []);
 
-  // Recent activities (static)
-  // const recentActivities = [
-  //   {
-  //     id: 1,
-  //     type: 'enquiry',
-  //     title: 'New enquiry from John Smith',
-  //     description: 'Interested in bulk order of digital calipers',
-  //     time: '10 minutes ago',
-  //     icon: <FiMail className="text-blue-500" />,
-  //   },
-  //   {
-  //     id: 2,
-  //     type: 'distributor',
-  //     title: 'New distributor application',
-  //     description: 'Precision Tools Co. applied to become distributor',
-  //     time: '2 hours ago',
-  //     icon: <FiUsers className="text-green-500" />,
-  //   },
-  // ];
-
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div className="text-red-500 flex items-center">
+      <div className="flex items-center justify-center min-h-screen text-red-500">
         <FiAlertCircle className="mr-2" />
         {error}
       </div>
@@ -101,12 +95,10 @@ const AdminDashboard = () => {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8">
           <h1 className="text-2xl font-bold text-gray-800 mb-2 md:mb-0">Dashboard Overview</h1>
-          {/* <span className="text-sm text-gray-500">Last updated: Today, 10:45 AM</span> */}
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-          {/* Products Card */}
           <Link
             to="/admin/products"
             className="bg-white p-4 md:p-6 rounded-lg shadow-sm hover:shadow-md transition-all border border-gray-100"
@@ -122,7 +114,6 @@ const AdminDashboard = () => {
             </div>
           </Link>
 
-          {/* Enquiries Card */}
           <Link
             to="/admin/enquiries"
             className="bg-white p-4 md:p-6 rounded-lg shadow-sm hover:shadow-md transition-all border border-gray-100"
@@ -138,7 +129,6 @@ const AdminDashboard = () => {
             </div>
           </Link>
 
-          {/* Distributors Card */}
           <Link
             to="/admin/distributors"
             className="bg-white p-4 md:p-6 rounded-lg shadow-sm hover:shadow-md transition-all border border-gray-100"
@@ -155,25 +145,36 @@ const AdminDashboard = () => {
           </Link>
         </div>
 
-        {/* Recent Activity */}
-        {/* <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm border border-gray-100">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-2 sm:mb-0">Recent Activity</h2>
+        {/* Admins List Table */}
+        <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Registered Admins</h2>
+          <div className="overflow-x-auto">
+            <table className="min-w-full table-auto">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Email</th>
+                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Username</th>
+                </tr>
+              </thead>
+              <tbody>
+                {admins.length > 0 ? (
+                  admins.map((admin) => (
+                    <tr key={admin.uid} className="border-t">
+                      <td className="px-4 py-3 text-sm text-gray-800">{admin.email}</td>
+                      <td className="px-4 py-3 text-sm text-gray-800">{admin.username}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="2" className="px-4 py-3 text-sm text-gray-500 text-center">
+                      No admins found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-
-          <div className="space-y-3 md:space-y-4">
-            {recentActivities.map((activity) => (
-              <div key={activity.id} className="flex items-start p-3 hover:bg-gray-50 rounded-lg transition">
-                <div className="flex-shrink-0 mt-1 mr-3 md:mr-4">{activity.icon}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{activity.title}</p>
-                  <p className="text-sm text-gray-500 mt-1">{activity.description}</p>
-                  <p className="text-xs text-gray-400 mt-1 md:mt-2">{activity.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div> */}
+        </div>
       </div>
     </div>
   );

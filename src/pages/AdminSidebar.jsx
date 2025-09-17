@@ -8,14 +8,24 @@ import {
   FiLogOut,
   FiMapPin
 } from 'react-icons/fi';
+import { logout } from '../services/authApi';
 
 const AdminSidebar = () => {
   const navigate = useNavigate();
   
-  const handleLogout = () => {
-    // Add any logout logic here (like clearing tokens, etc.)
-    // Then navigate to the login page
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (token) {
+        await logout(token);
+        console.log('Logout successful, token cleared');
+      }
+      navigate('/');
+    } catch (error) {
+      console.error('Logout error:', error.message);
+      localStorage.removeItem('adminToken'); // Clear token even on error
+      navigate('/');
+    }
   };
 
   return (
@@ -76,7 +86,6 @@ const AdminSidebar = () => {
           Distributors
         </NavLink>
 
-        {/* Added Address NavLink */}
         <NavLink 
           to="/admin/address" 
           className={({isActive}) => 
@@ -124,7 +133,6 @@ const AdminSidebar = () => {
         </NavLink>
       </nav>
 
-      
       <div className="p-4 border-t border-blue-700">
         <button 
           onClick={handleLogout}

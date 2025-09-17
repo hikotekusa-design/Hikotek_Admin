@@ -69,7 +69,6 @@ const AddProducts = () => {
     if (!product.name.trim()) newErrors.name = 'Product name is required';
     if (!product.price || parseFloat(product.price) <= 0) newErrors.price = 'Valid price is required';
     if (!product.category.trim() && !newCategoryInput.trim()) newErrors.category = 'Category is required';
-    if (!product.subcategory.trim() && !newSubcategoryInput.trim()) newErrors.subcategory = 'Subcategory is required';
     if (product.images.length === 0) newErrors.images = 'At least one image is required';
     if (product.specifications.some((spec) => !spec.trim())) {
       newErrors.specifications = 'All specifications must be filled';
@@ -707,41 +706,12 @@ const AddProducts = () => {
                         ))}
                         <option value="new">Add New Category</option>
                       </select>
-                      {product.category && (
-                        <div className="ml-2">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteCategory(product.category)}
-                            className="text-red-600 hover:text-red-800"
-                            title="Delete category"
-                          >
-                            <FiTrash2 size={16} />
-                          </button>
-                        </div>
-                      )}
                     </div>
                   )}
-                  <div className="mt-2">
-                    {categories.map((cat, idx) => (
-                      <div key={idx} className="flex items-center justify-between py-1">
-                        <span>{cat}</span>
-                        <div>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteCategory(cat)}
-                            className="text-red-600 hover:text-red-800"
-                            title="Delete category"
-                          >
-                            <FiTrash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
                 <div>
                   <label htmlFor="subcategory" className="block text-sm font-medium text-gray-700">
-                    Subcategory {errors.subcategory && <span className="text-red-500 text-xs">({errors.subcategory})</span>}
+                    Subcategory
                   </label>
                   {isNewSubcategory ? (
                     <div className="flex items-center">
@@ -751,11 +721,8 @@ const AddProducts = () => {
                         name="subcategory"
                         value={newSubcategoryInput}
                         onChange={handleNewSubcategoryChange}
-                        className={`mt-1 block w-full border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                          errors.subcategory ? 'border-red-500' : 'border-gray-300'
-                        }`}
+                        className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 border-gray-300"
                         placeholder="Enter new subcategory"
-                        required
                       />
                       <button
                         type="button"
@@ -776,14 +743,9 @@ const AddProducts = () => {
                         name="subcategory"
                         value={product.subcategory}
                         onChange={handleSubcategoryChange}
-                        className={`mt-1 block w-full border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                          errors.subcategory ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        required
+                        className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 border-gray-300"
                       >
-                        <option value="" disabled>
-                          Select a subcategory
-                        </option>
+                        <option value="">Select a subcategory (optional)</option>
                         {subcategories.map((sub, idx) => (
                           <option key={idx} value={sub}>
                             {sub}
@@ -791,37 +753,8 @@ const AddProducts = () => {
                         ))}
                         <option value="new">Add New Subcategory</option>
                       </select>
-                      {product.subcategory && (
-                        <div className="ml-2">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteSubcategory(product.subcategory)}
-                            className="text-red-600 hover:text-red-800"
-                            title="Delete subcategory"
-                          >
-                            <FiTrash2 size={16} />
-                          </button>
-                        </div>
-                      )}
                     </div>
                   )}
-                  <div className="mt-2">
-                    {subcategories.map((sub, idx) => (
-                      <div key={idx} className="flex items-center justify-between py-1">
-                        <span>{sub}</span>
-                        <div>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteSubcategory(sub)}
-                            className="text-red-600 hover:text-red-800"
-                            title="Delete subcategory"
-                          >
-                            <FiTrash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
                 <div>
                   <label htmlFor="price" className="block text-sm font-medium text-gray-700">
@@ -1047,7 +980,7 @@ const AddProducts = () => {
                   className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
-                  viewBox="0 0 24 24"
+                  viewBox="0 24 24"
                 >
                   <circle
                     className="opacity-25"
